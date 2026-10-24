@@ -8,7 +8,7 @@ import type { SurahRow } from "../../db/schema";
 
 export default function BrowseScreen() {
   const [surahs, setSurahs] = useState<SurahRow[]>([]);
-  const setLastPage = useUserStore((s) => s.setLastPage);
+  const requestJump = useUserStore((s) => s.requestJump);
   useEffect(() => { getSurahs().then(setSurahs); }, []);
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -17,7 +17,7 @@ export default function BrowseScreen() {
         keyExtractor={(s) => String(s.id)}
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => { setLastPage(item.first_page); router.navigate("/(tabs)"); }}
+            onPress={() => { requestJump(item.first_page); router.navigate("/(tabs)"); }}
             style={{ padding: 16, borderBottomWidth: 1, borderColor: "#eee" }}
           >
             <Text style={{ fontSize: 18, textAlign: "right" }}>

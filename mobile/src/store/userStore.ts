@@ -11,6 +11,9 @@ interface UserState {
   setLastPage: (p: number) => void;
   toggleBookmark: (verseKey: string) => void;
   setSettings: (s: Partial<Settings>) => void;
+  pendingJump: number | null;
+  requestJump: (page: number) => void;
+  clearPendingJump: () => void;
 }
 const clampPage = (p: number) => Math.min(604, Math.max(1, Math.round(p)));
 
@@ -30,6 +33,9 @@ export const useUserStore = create<UserState>()(
         });
       },
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
+      pendingJump: null,
+      requestJump: (page) => { const p = clampPage(page); set({ lastPage: p, pendingJump: p }); },
+      clearPendingJump: () => set({ pendingJump: null }),
     }),
     { name: "quran-user", storage: createJSONStorage(() => AsyncStorage) },
   ),

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 import { ActivityIndicator, Dimensions, FlatList, View } from "react-native";
 import { useEffect, useState } from "react";
 import { MushafPage } from "./MushafPage";
@@ -30,18 +30,32 @@ function PageHost({ page, selectedVerseKey, onSelectAyah }: {
   );
 }
 
-export function PagePager({ initialPage, selectedVerseKey, onSelectAyah, onPageChange }: {
+export interface PagePagerHandle { scrollToPage: (page: number) => void; }
+
+interface Props {
   initialPage: number; selectedVerseKey: string | null;
   onSelectAyah: (k: string) => void; onPageChange: (page: number) => void;
-}) {
+}
+
+export const PagePager = forwardRef<PagePagerHandle, Props>(function PagePager(
+  { initialPage, selectedVerseKey, onSelectAyah, onPageChange },
+  ref,
+) {
   // RTL: page 1 is the rightmost. With `inverted`, list index 0 renders on the right,
   // so index = PAGES - page maps page 1 -> rightmost and increases leftward.
   const toIndex = (page: number) => PAGES - page;
+  const listRef = useRef<FlatList>(null);
+  useImperativeHandle(ref, () => ({
+    scrollToPage: (page: number) => {
+      listRef.current?.scrollToIndex({ index: PAGES - page, animated: false });
+    },
+  }), []);
   const renderItem = useCallback(({ index }: { index: number }) => (
     <PageHost page={PAGES - index} selectedVerseKey={selectedVerseKey} onSelectAyah={onSelectAyah} />
   ), [selectedVerseKey, onSelectAyah]);
   return (
     <FlatList
+      ref={listRef}
       horizontal
       pagingEnabled
       inverted
@@ -58,4 +72,4 @@ export function PagePager({ initialPage, selectedVerseKey, onSelectAyah, onPageC
       windowSize={3}
     />
   );
-}
+});
