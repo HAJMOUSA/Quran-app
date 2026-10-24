@@ -9,7 +9,7 @@ import type { SurahRow } from "../../db/schema";
 export default function BrowseScreen() {
   const [surahs, setSurahs] = useState<SurahRow[]>([]);
   const requestJump = useUserStore((s) => s.requestJump);
-  useEffect(() => { getSurahs().then(setSurahs); }, []);
+  useEffect(() => { getSurahs().then(setSurahs).catch((e) => console.warn("getSurahs failed", e)); }, []);
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <FlatList

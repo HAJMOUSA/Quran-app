@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
-import { ActivityIndicator, Dimensions, FlatList, View } from "react-native";
+import { ActivityIndicator, Dimensions, FlatList, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { MushafPage } from "./MushafPage";
 import { getPageWords } from "../db/quranDb";
@@ -13,15 +13,24 @@ function PageHost({ page, selectedVerseKey, onSelectAyah }: {
   page: number; selectedVerseKey: string | null; onSelectAyah: (k: string) => void;
 }) {
   const [data, setData] = useState<{ words: WordRow[]; family: string } | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [words, family] = await Promise.all([getPageWords(page), ensurePageFont(page)]);
-      if (alive) setData({ words, family });
+      try {
+        const [words, family] = await Promise.all([getPageWords(page), ensurePageFont(page)]);
+        if (alive) setData({ words, family });
+      } catch (e) {
+        if (alive) { console.warn("page load failed", page, e); setFailed(true); }
+      }
     })();
     return () => { alive = false; };
   }, [page]);
-  if (!data) return <View style={{ width, flex: 1, justifyContent: "center" }}><ActivityIndicator /></View>;
+  if (!data) return (
+    <View style={{ width, flex: 1, justifyContent: "center", alignItems: "center" }}>
+      {failed ? <Text>Couldn't load this page</Text> : <ActivityIndicator />}
+    </View>
+  );
   return (
     <View style={{ width }}>
       <MushafPage words={data.words} fontFamily={data.family}

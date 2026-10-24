@@ -13,7 +13,8 @@ export default function SearchScreen() {
   const requestJump = useUserStore((s) => s.requestJump);
   const run = async (text: string) => {
     setQ(text);
-    setHits(text.trim() ? await search(text) : []);
+    if (!text.trim()) { setHits([]); return; }
+    try { setHits(await search(text)); } catch (e) { console.warn("search failed", e); setHits([]); }
   };
   return (
     <SafeAreaView style={{ flex: 1, padding: 12 }}>

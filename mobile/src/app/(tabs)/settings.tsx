@@ -14,7 +14,8 @@ export default function SettingsScreen() {
   const [pages, setPages] = useState<Record<string, number>>({});
   useEffect(() => {
     Promise.all(bookmarks.map((b) => getVerse(b.verseKey))).then((vs) =>
-      setPages(Object.fromEntries(vs.filter((v): v is NonNullable<typeof v> => !!v).map((v) => [v.verse_key, v.page]))));
+      setPages(Object.fromEntries(vs.filter((v): v is NonNullable<typeof v> => !!v).map((v) => [v.verse_key, v.page]))))
+      .catch((e) => console.warn("bookmark pages failed", e));
   }, [bookmarks]);
   return (
     <SafeAreaView style={{ flex: 1, padding: 16 }}>

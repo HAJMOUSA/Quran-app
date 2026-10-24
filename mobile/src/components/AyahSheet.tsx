@@ -12,7 +12,7 @@ export const AyahSheet = forwardRef<BottomSheet, { verseKey: string | null }>(
     const [verse, setVerse] = useState<VerseRow | null>(null);
     const bookmarks = useUserStore((s) => s.bookmarks);
     const toggleBookmark = useUserStore((s) => s.toggleBookmark);
-    useEffect(() => { if (verseKey) getVerse(verseKey).then(setVerse); }, [verseKey]);
+    useEffect(() => { if (verseKey) getVerse(verseKey).then(setVerse).catch((e) => console.warn("getVerse failed", e)); }, [verseKey]);
     const bookmarked = !!verseKey && bookmarks.some((b) => b.verseKey === verseKey);
     return (
       <BottomSheet ref={ref} index={-1} snapPoints={["35%"]} enablePanDownToClose>

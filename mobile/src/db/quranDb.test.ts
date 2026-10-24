@@ -7,6 +7,11 @@ test("search query normalizes and wraps with wildcards", () => {
   expect(params[0]).toBe("%الحمد%");
 });
 
+test("search query keeps single spaces for multi-word queries", () => {
+  const { params } = buildSearchQuery("الْحَمْدُ   لِلَّهِ");
+  expect(params[0]).toBe("%الحمد لله%");
+});
+
 test("groupWordsByLine groups and orders by position", () => {
   const rows = [
     { line: 2, position: 2 }, { line: 1, position: 1 }, { line: 1, position: 2 },

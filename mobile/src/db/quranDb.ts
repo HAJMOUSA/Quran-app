@@ -44,7 +44,7 @@ export function groupWordsByLine(rows: WordRow[]): MushafLine[] {
 }
 
 export function buildSearchQuery(text: string): { sql: string; params: string[] } {
-  const norm = normalizeArabic(text).replace(/\s+/g, "");
+  const norm = normalizeArabic(text).replace(/\s+/g, " ").trim();
   return {
     sql: `SELECT verse_key, surah, page, translation_en FROM verses WHERE norm LIKE ? LIMIT 50`,
     params: [`%${norm}%`],
