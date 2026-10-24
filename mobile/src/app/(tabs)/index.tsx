@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PagePager } from "../components/PagePager";
-import { useUserStore } from "../store/userStore";
+import { PagePager } from "../../components/PagePager";
+import { useUserStore } from "../../store/userStore";
 
 export default function MushafScreen() {
   const lastPage = useUserStore((s) => s.lastPage);
