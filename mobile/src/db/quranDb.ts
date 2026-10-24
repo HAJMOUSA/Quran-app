@@ -13,10 +13,17 @@ export async function openDb(): Promise<SQLite.SQLiteDatabase> {
   const target = `${dir}/${DB_NAME}`;
   const info = await FileSystem.getInfoAsync(target);
   if (!info.exists) {
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-    const asset = Asset.fromModule(require("../../assets/quran.db"));
-    await asset.downloadAsync();
-    await FileSystem.copyAsync({ from: asset.localUri!, to: target });
+    try {
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+      const asset = Asset.fromModule(require("../../assets/quran.db"));
+      await asset.downloadAsync();
+      if (!asset.localUri) throw new Error("bundled quran.db asset has no localUri");
+      await FileSystem.copyAsync({ from: asset.localUri, to: target });
+    } catch (e) {
+      // Never leave a half-written DB: remove it so the next launch retries (design §7).
+      await FileSystem.deleteAsync(target, { idempotent: true }).catch(() => {});
+      throw new Error(`Failed to initialize quran.db: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
   db = await SQLite.openDatabaseAsync(DB_NAME);
   return db;
