@@ -25,7 +25,9 @@ export async function openDb(): Promise<SQLite.SQLiteDatabase> {
       throw new Error(`Failed to initialize quran.db: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-  db = await SQLite.openDatabaseAsync(DB_NAME);
+  // Open from the SAME directory we copied into. openDatabaseAsync otherwise
+  // defaults to the native defaultDatabaseDirectory and would open an empty DB.
+  db = await SQLite.openDatabaseAsync(DB_NAME, undefined, dir);
   return db;
 }
 
