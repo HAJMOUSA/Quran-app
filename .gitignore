@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# Generated data (rebuild with server/scripts/build_quran_db.py)
+data/raw/
+data/audio/
+data/quran.db
+data/*.log
+# Full-size source page fonts (local cache for build_page_fonts.py; do NOT bundle)
+data/fonts_src/
+# Mobile
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/dist/
+mobile/assets/db/quran.db
+*.apk
+*.aab
+.DS_Store
