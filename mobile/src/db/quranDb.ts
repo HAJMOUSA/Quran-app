@@ -33,6 +33,15 @@ export async function openDb(): Promise<SQLite.SQLiteDatabase> {
 }
 
 export interface MushafLine { line: number; words: WordRow[]; }
+
+// Reading order within a line is (surah, ayah, position) — NOT position alone.
+// A line can span the end of one ayah and the start of the next; `position` is
+// the index *within an ayah*, so sorting by it interleaves the two ayat. `id` is
+// Quran.com's global word id and is not in reading order. (surah, ayah, position)
+// matches the mushaf sequence exactly and also orders ayah-end markers correctly.
+export const readingOrder = (a: WordRow, b: WordRow): number =>
+  a.surah - b.surah || a.ayah - b.ayah || a.position - b.position;
+
 export function groupWordsByLine(rows: WordRow[]): MushafLine[] {
   const byLine = new Map<number, WordRow[]>();
   for (const w of rows) {
@@ -41,7 +50,7 @@ export function groupWordsByLine(rows: WordRow[]): MushafLine[] {
   }
   return [...byLine.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([line, words]) => ({ line, words: words.sort((a, b) => a.position - b.position) }));
+    .map(([line, words]) => ({ line, words: words.sort(readingOrder) }));
 }
 
 export function buildSearchQuery(text: string): { sql: string; params: string[] } {
@@ -56,7 +65,7 @@ export async function getPageWords(page: number): Promise<WordRow[]> {
   const d = await openDb();
   return d.getAllAsync<WordRow>(
     `SELECT id,verse_key,surah,ayah,position,page,line,char_type,code_v2,gidx
-     FROM words WHERE page=? ORDER BY line, position`, [page]);
+     FROM words WHERE page=? ORDER BY line, surah, ayah, position`, [page]);
 }
 /** Recitable words of a surah (char_type='word'), for aligning audio segments. */
 export async function getSurahWordIndex(surah: number): Promise<WordIndexRow[]> {
