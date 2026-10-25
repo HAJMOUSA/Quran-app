@@ -33,3 +33,21 @@ def test_search_text(client):
 def test_search_audio_without_asr_is_503(client):
     r = client.post("/api/search/audio", content=b"\x00\x00" * 100, headers={"content-type": "audio/pcm"})
     assert r.status_code == 503
+
+
+def test_search_audio_rejects_bad_sample_rate(client):
+    # Validation happens before ASR, so this is 400 even with ASR disabled.
+    r = client.post("/api/search/audio?sample_rate=1000000",
+                    content=b"\x00\x00" * 100, headers={"content-type": "audio/pcm"})
+    assert r.status_code == 400
+
+
+def test_search_audio_rejects_oversized_body(client):
+    r = client.post("/api/search/audio", content=b"\x00" * (12 * 1024 * 1024 + 1),
+                    headers={"content-type": "audio/pcm"})
+    assert r.status_code == 413
+
+
+def test_search_text_clamps_top_k(client):
+    r = client.post("/api/search/text", json={"text": "الله", "top_k": 999})
+    assert r.status_code == 422  # pydantic rejects top_k > 20

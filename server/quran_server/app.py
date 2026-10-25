@@ -27,7 +27,7 @@ import numpy as np
 import soundfile as sf
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .asr import SAMPLE_RATE, QuranASR, pcm16_to_float, resample
 from .normalize import normalize_words
@@ -37,8 +37,18 @@ from .session import StreamingSession
 log = logging.getLogger("quran_server")
 DB_PATH = Path(os.environ.get("QURAN_DB", Path(__file__).resolve().parents[2] / "data" / "quran.db"))
 MAX_UPLOAD_S = 30
+MIN_SR, MAX_SR = 8_000, 48_000     # accepted input sample rates
+MAX_BODY_BYTES = 12 * 1024 * 1024  # ~30 s of 16-bit 48 kHz mono + file overhead
+MAX_WS_FRAME_BYTES = 1024 * 1024   # one streamed PCM frame
+MAX_QUERY_WORDS = 64               # cap the O(n*m) alignment DP (see quran_index)
 
 state: dict = {}
+
+
+def _check_sr(sr: int) -> int:
+    if not (MIN_SR <= sr <= MAX_SR):
+        raise HTTPException(400, f"sample_rate must be in [{MIN_SR}, {MAX_SR}]")
+    return sr
 
 
 @asynccontextmanager
@@ -65,6 +75,8 @@ def _asr() -> QuranASR:
 
 def _candidates(words: list[str], top_k: int) -> list[dict]:
     index: QuranIndex = state["index"]
+    words = words[:MAX_QUERY_WORDS]          # bound the alignment DP
+    top_k = max(1, min(int(top_k), 20))
     return [
         {"start": c.start, "end": c.end, "score": round(c.score, 3), "verse_keys": c.verse_keys,
          "page": index.page[c.start], "start_word_id": index.word_id[c.start],
@@ -81,8 +93,8 @@ def health():
 
 
 class TextQuery(BaseModel):
-    text: str
-    top_k: int = 5
+    text: str = Field(max_length=4000)
+    top_k: int = Field(default=5, ge=1, le=20)
 
 
 @app.post("/api/search/text")
@@ -97,14 +109,20 @@ async def search_audio(request: Request, top_k: int = 5, sample_rate: int = SAMP
     body = await request.body()
     if not body:
         raise HTTPException(400, "empty body")
+    if len(body) > MAX_BODY_BYTES:
+        raise HTTPException(413, f"body exceeds {MAX_BODY_BYTES} bytes")
     if request.headers.get("content-type", "").startswith("audio/pcm"):
-        audio = resample(pcm16_to_float(body), sample_rate)
+        _check_sr(sample_rate)
+        raw = pcm16_to_float(body)[: MAX_UPLOAD_S * sample_rate]  # truncate before resample
+        audio = resample(raw, sample_rate)
     else:
         try:
-            data, sr = sf.read(io.BytesIO(body), dtype="float32", always_2d=True)
+            # frames cap bounds decode cost even for a crafted header.
+            data, sr = sf.read(io.BytesIO(body), dtype="float32", always_2d=True,
+                               frames=MAX_UPLOAD_S * MAX_SR)
         except Exception as exc:  # soundfile raises a generic RuntimeError subclass
             raise HTTPException(415, f"unsupported audio: {exc}") from exc
-        audio = resample(data.mean(axis=1), sr)
+        audio = resample(data.mean(axis=1)[: MAX_UPLOAD_S * sr], sr)
     audio = audio[: MAX_UPLOAD_S * SAMPLE_RATE]
     text, latency = await asyncio.to_thread(_asr().transcribe, audio)
     words = normalize_words(text)
@@ -143,7 +161,11 @@ async def ws_recite(ws: WebSocket):
                 cmd = json.loads(msg["text"])
                 kind = cmd.get("type")
                 if kind == "start":
-                    sample_rate = int(cmd.get("sample_rate", SAMPLE_RATE))
+                    sr = int(cmd.get("sample_rate", SAMPLE_RATE))
+                    if not (MIN_SR <= sr <= MAX_SR):
+                        await ws.send_json({"type": "error", "message": f"sample_rate must be in [{MIN_SR}, {MAX_SR}]"})
+                        continue
+                    sample_rate = sr
                     session = StreamingSession(asr, state["index"], cmd.get("start_gidx"))
                     await ws.send_json({"type": "ready", "model": asr.model_name, "device": asr.device})
                 elif kind == "lock" and session:
@@ -154,7 +176,8 @@ async def ws_recite(ws: WebSocket):
                 elif kind == "stop":
                     break
             elif msg.get("bytes") is not None and session is not None:
-                audio = pcm16_to_float(msg["bytes"])
+                frame = msg["bytes"][:MAX_WS_FRAME_BYTES]
+                audio = pcm16_to_float(frame)
                 if sample_rate != SAMPLE_RATE:
                     audio = resample(audio, sample_rate)
                 session.add_audio(audio)
