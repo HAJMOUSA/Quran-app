@@ -3,7 +3,12 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 export interface Bookmark { verseKey: string; addedAt: number; }
-export interface Settings { language: "ar" | "en"; theme: "light" | "dark"; translationDefault: boolean; }
+export interface Settings {
+  language: "ar" | "en";
+  theme: "light" | "dark";
+  translationDefault: boolean;
+  reciterId: number; // Quran.com recitation id; 7 = Mishary Alafasy (Murattal)
+}
 interface UserState {
   lastPage: number;
   bookmarks: Bookmark[];
@@ -22,7 +27,7 @@ export const useUserStore = create<UserState>()(
     (set, get) => ({
       lastPage: 1,
       bookmarks: [],
-      settings: { language: "en", theme: "light", translationDefault: true },
+      settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7 },
       setLastPage: (p) => set({ lastPage: clampPage(p) }),
       toggleBookmark: (verseKey) => {
         const exists = get().bookmarks.some((b) => b.verseKey === verseKey);
@@ -37,6 +42,15 @@ export const useUserStore = create<UserState>()(
       requestJump: (page) => { const p = clampPage(page); set({ lastPage: p, pendingJump: p }); },
       clearPendingJump: () => set({ pendingJump: null }),
     }),
-    { name: "quran-user", storage: createJSONStorage(() => AsyncStorage) },
+    {
+      name: "quran-user",
+      storage: createJSONStorage(() => AsyncStorage),
+      // Deep-merge `settings` so keys added in later versions (e.g. reciterId)
+      // fall back to defaults instead of being dropped by persisted older state.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<UserState>;
+        return { ...current, ...p, settings: { ...current.settings, ...(p.settings ?? {}) } };
+      },
+    },
   ),
 );

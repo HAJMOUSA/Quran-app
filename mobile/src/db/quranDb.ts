@@ -3,6 +3,7 @@ import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import { normalizeArabic } from "../i18n";
 import type { WordRow, VerseRow, SurahRow, SearchHit } from "./schema";
+import type { WordIndexRow } from "../audio/timeline";
 
 const DB_NAME = "quran.db";
 let db: SQLite.SQLiteDatabase | null = null;
@@ -56,6 +57,13 @@ export async function getPageWords(page: number): Promise<WordRow[]> {
   return d.getAllAsync<WordRow>(
     `SELECT id,verse_key,surah,ayah,position,page,line,char_type,code_v2,gidx
      FROM words WHERE page=? ORDER BY line, position`, [page]);
+}
+/** Recitable words of a surah (char_type='word'), for aligning audio segments. */
+export async function getSurahWordIndex(surah: number): Promise<WordIndexRow[]> {
+  const d = await openDb();
+  return d.getAllAsync<WordIndexRow>(
+    `SELECT id, verse_key, position, page FROM words
+     WHERE surah=? AND char_type='word' ORDER BY ayah, position`, [surah]);
 }
 export async function getVerse(verseKey: string): Promise<VerseRow | null> {
   const d = await openDb();

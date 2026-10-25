@@ -23,7 +23,12 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "sheet.bookmark": { en: "Bookmark", ar: "علامة" },
   "sheet.copy": { en: "Copy", ar: "نسخ" },
   "sheet.share": { en: "Share", ar: "مشاركة" },
+  "sheet.play": { en: "Play", ar: "استماع" },
+  "player.loading": { en: "Loading audio…", ar: "جارٍ التحميل…" },
+  "player.repeat": { en: "Repeat ayah", ar: "تكرار الآية" },
+  "player.stop": { en: "Stop", ar: "إيقاف" },
   "settings.language": { en: "Language", ar: "اللغة" },
   "settings.theme": { en: "Theme", ar: "المظهر" },
+  "settings.reciter": { en: "Reciter", ar: "القارئ" },
 };
 export function t(key: string): string { return STRINGS[key]?.[lang] ?? key; }

@@ -7,8 +7,8 @@ import { useUserStore } from "../store/userStore";
 import { t } from "../i18n";
 import type { VerseRow } from "../db/schema";
 
-export const AyahSheet = forwardRef<BottomSheet, { verseKey: string | null }>(
-  function AyahSheet({ verseKey }, ref) {
+export const AyahSheet = forwardRef<BottomSheet, { verseKey: string | null; onPlay?: (verseKey: string) => void }>(
+  function AyahSheet({ verseKey, onPlay }, ref) {
     const [verse, setVerse] = useState<VerseRow | null>(null);
     const bookmarks = useUserStore((s) => s.bookmarks);
     const toggleBookmark = useUserStore((s) => s.toggleBookmark);
@@ -23,6 +23,9 @@ export const AyahSheet = forwardRef<BottomSheet, { verseKey: string | null }>(
               <Text style={{ fontSize: 26, textAlign: "right", marginVertical: 8 }}>{verse.text_uthmani}</Text>
               <Text style={{ fontSize: 16, color: "#333" }}>{verse.translation_en}</Text>
               <View style={{ flexDirection: "row", gap: 24, marginTop: 16 }}>
+                <Pressable onPress={() => onPlay?.(verse.verse_key)}>
+                  <Text style={{ color: "#1f6f43", fontWeight: "600" }}>▶ {t("sheet.play")}</Text>
+                </Pressable>
                 <Pressable onPress={() => toggleBookmark(verse.verse_key)}>
                   <Text style={{ color: bookmarked ? "#c08a00" : "#007aff" }}>
                     {bookmarked ? "★ " : "☆ "}{t("sheet.bookmark")}

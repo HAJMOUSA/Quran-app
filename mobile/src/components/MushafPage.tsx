@@ -8,9 +8,13 @@ interface Props {
   fontFamily: string;
   selectedVerseKey: string | null;
   onSelectAyah: (verseKey: string) => void;
+  activeWordId?: number | null;      // word currently being recited (playback)
+  playingVerseKey?: string | null;   // ayah currently being recited
 }
 
-export const MushafPage = memo(function MushafPage({ words, fontFamily, selectedVerseKey, onSelectAyah }: Props) {
+export const MushafPage = memo(function MushafPage({
+  words, fontFamily, selectedVerseKey, onSelectAyah, activeWordId = null, playingVerseKey = null,
+}: Props) {
   const lines = useMemo(() => groupWordsByLine(words), [words]);
   return (
     <View style={styles.page}>
@@ -23,6 +27,8 @@ export const MushafPage = memo(function MushafPage({ words, fontFamily, selected
                   styles.word,
                   { fontFamily },
                   word.verse_key === selectedVerseKey && styles.selected,
+                  word.verse_key === playingVerseKey && styles.playingAyah,
+                  word.id === activeWordId && styles.activeWord,
                 ]}
               >
                 {word.code_v2 ?? ""}
@@ -40,4 +46,6 @@ const styles = StyleSheet.create({
   line: { flexDirection: "row-reverse", flexWrap: "nowrap", justifyContent: "center", alignItems: "center" },
   word: { fontSize: 28, color: "#111", lineHeight: 46 },
   selected: { backgroundColor: "#fdf0c8" },
+  playingAyah: { backgroundColor: "#eaf5ea" },
+  activeWord: { backgroundColor: "#8ddf8d", color: "#06310a" },
 });
