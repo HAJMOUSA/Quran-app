@@ -122,6 +122,11 @@ async def search_audio(request: Request, top_k: int = 5, sample_rate: int = SAMP
                                frames=MAX_UPLOAD_S * MAX_SR)
         except Exception as exc:  # soundfile raises a generic RuntimeError subclass
             raise HTTPException(415, f"unsupported audio: {exc}") from exc
+        # The rate comes from the (untrusted) file header: validate before resampling,
+        # else a crafted header forces a huge resample ratio. Cap channels too.
+        _check_sr(sr)
+        if data.shape[1] > 8:
+            raise HTTPException(415, "too many audio channels")
         audio = resample(data.mean(axis=1)[: MAX_UPLOAD_S * sr], sr)
     audio = audio[: MAX_UPLOAD_S * SAMPLE_RATE]
     text, latency = await asyncio.to_thread(_asr().transcribe, audio)
