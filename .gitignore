@@ -3,14 +3,11 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
-# Generated data (rebuild with server/scripts/build_quran_db.py)
-data/raw/
-data/audio/
-data/quran.db
-data/*.log
-# Full-size source page fonts (local cache for build_page_fonts.py; do NOT bundle)
-data/fonts_src/
+# Generated/scratch data: built DB, cached audio, logs, device screenshots.
+# Rebuild quran.db with server/scripts/build_quran_db.py (see README).
+data/
 # Mobile
+mobile/.claude/
 mobile/node_modules/
 mobile/.expo/
 mobile/android/

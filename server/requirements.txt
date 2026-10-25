@@ -1,0 +1,11 @@
+# Install torch first for your platform (CPU or CUDA), see README.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+transformers>=4.45
+soundfile>=0.13      # libsndfile >= 1.1 reads MP3
+scipy>=1.11
+numpy>=1.26
+rapidfuzz>=3.9
+httpx>=0.27
+pydantic>=2.7
+pytest>=8

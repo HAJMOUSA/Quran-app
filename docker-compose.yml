@@ -1,0 +1,23 @@
+# Deploy:  docker compose up -d --build        (CPU, tiny model by default)
+# GPU host: uncomment the deploy block and set QURAN_ASR_MODEL to the base model,
+#           build with --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cu128
+services:
+  quran-server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # tiny: fast on CPU; base: more accurate, use with a GPU
+      QURAN_ASR_MODEL: tarteel-ai/whisper-tiny-ar-quran
+    volumes:
+      - ./data:/data
+      - hf-cache:/cache/hf
+    restart: unless-stopped
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+volumes:
+  hf-cache:
