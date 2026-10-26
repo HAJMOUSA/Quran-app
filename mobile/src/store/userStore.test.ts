@@ -1,7 +1,8 @@
 import { useUserStore } from "./userStore";
 
 beforeEach(() => useUserStore.setState({ lastPage: 1, bookmarks: [], pendingJump: null,
-  settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7 } }));
+  settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7,
+    serverUrl: "http://localhost:8000" } }));
 
 test("setLastPage clamps to 1..604", () => {
   useUserStore.getState().setLastPage(999);

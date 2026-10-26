@@ -8,6 +8,9 @@ export interface Settings {
   theme: "light" | "dark";
   translationDefault: boolean;
   reciterId: number; // Quran.com recitation id; 7 = Mishary Alafasy (Murattal)
+  // Recitation server for recite-to-search / follow-along. Default is the USB dev
+  // tunnel (adb reverse tcp:8000); set to a Tailscale/LAN URL for off-cable use.
+  serverUrl: string;
 }
 interface UserState {
   lastPage: number;
@@ -27,7 +30,8 @@ export const useUserStore = create<UserState>()(
     (set, get) => ({
       lastPage: 1,
       bookmarks: [],
-      settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7 },
+      settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7,
+        serverUrl: "http://localhost:8000" },
       setLastPage: (p) => set({ lastPage: clampPage(p) }),
       toggleBookmark: (verseKey) => {
         const exists = get().bookmarks.some((b) => b.verseKey === verseKey);

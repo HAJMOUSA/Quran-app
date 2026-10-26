@@ -20,6 +20,13 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "tab.search": { en: "Search", ar: "بحث" },
   "tab.settings": { en: "Settings", ar: "الإعدادات" },
   "search.placeholder": { en: "Search the Quran", ar: "ابحث في القرآن" },
+  "recite.tap": { en: "Recite to search", ar: "اقرأ للبحث" },
+  "recite.listening": { en: "Listening… tap to stop", ar: "يستمع… اضغط للإيقاف" },
+  "recite.searching": { en: "Searching…", ar: "جارٍ البحث…" },
+  "recite.heard": { en: "Heard", ar: "المسموع" },
+  "recite.nomatch": { en: "No match found", ar: "لا توجد نتيجة" },
+  "recite.denied": { en: "Microphone permission needed", ar: "يلزم إذن الميكروفون" },
+  "recite.error": { en: "Couldn't reach the server", ar: "تعذّر الوصول إلى الخادم" },
   "sheet.bookmark": { en: "Bookmark", ar: "علامة" },
   "sheet.copy": { en: "Copy", ar: "نسخ" },
   "sheet.share": { en: "Share", ar: "مشاركة" },
@@ -30,5 +37,6 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "settings.language": { en: "Language", ar: "اللغة" },
   "settings.theme": { en: "Theme", ar: "المظهر" },
   "settings.reciter": { en: "Reciter", ar: "القارئ" },
+  "settings.server": { en: "Recitation server URL", ar: "رابط خادم التلاوة" },
 };
 export function t(key: string): string { return STRINGS[key]?.[lang] ?? key; }

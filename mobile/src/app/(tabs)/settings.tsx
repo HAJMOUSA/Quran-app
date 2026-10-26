@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, Switch, Text, View } from "react-native";
+import { FlatList, Pressable, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useUserStore } from "../../store/userStore";
@@ -63,6 +63,17 @@ export default function SettingsScreen() {
           />
         </View>
       )}
+      <View style={{ paddingVertical: 12 }}>
+        <Text style={{ fontSize: 16, marginBottom: 6 }}>{t("settings.server")}</Text>
+        <TextInput
+          value={settings.serverUrl}
+          onChangeText={(v) => setSettings({ serverUrl: v.trim() })}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="http://localhost:8000"
+          style={{ borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, fontSize: 14 }}
+        />
+      </View>
       <Text style={{ fontSize: 18, marginTop: 20, marginBottom: 8 }}>★</Text>
       <FlatList
         data={bookmarks}
