@@ -44,6 +44,16 @@ def test_decode_rejects_non_audio():
         decode_audio_bytes(b"not audio at all")
 
 
+def test_decode_rejects_extreme_sample_rate():
+    # A file declaring a very high input rate is rejected before resampling, so a
+    # crafted header can't inflate intermediate buffers.
+    import pytest
+    sr = 96000
+    tone = np.zeros(sr, dtype="float32")
+    with pytest.raises(Exception):
+        decode_audio_bytes(_encode_m4a(tone, sr))
+
+
 def test_decode_rejects_playlist_ssrf_vector():
     # An HLS playlist referencing a remote URL must not be demuxed (SSRF guard):
     # the format whitelist excludes hls/concat so ffmpeg won't fetch the URL.

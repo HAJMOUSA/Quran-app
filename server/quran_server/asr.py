@@ -48,6 +48,8 @@ def pcm16_to_float(buf: bytes) -> np.ndarray:
 # fully in memory, so no protocol access is ever legitimately needed.
 _FORMAT_WHITELIST = "mov,mp4,m4a,3gp,3g2,mj2,wav,ogg,mp3,aac,flac,matroska,webm"
 _ALLOWED_DEMUXERS = {"mov,mp4,m4a,3gp,3g2,mj2", "wav", "ogg", "mp3", "aac", "flac", "matroska,webm"}
+DECODE_MIN_SR, DECODE_MAX_SR = 8_000, 48_000  # accepted input rates (phone mics are ≤48 kHz)
+DECODE_MAX_CHANNELS = 8
 
 
 def decode_audio_bytes(data: bytes, max_seconds: int = 30) -> np.ndarray:
@@ -56,6 +58,8 @@ def decode_audio_bytes(data: bytes, max_seconds: int = 30) -> np.ndarray:
     Uses PyAV (bundled ffmpeg) so phone recordings (AAC/m4a) are accepted. Decoding
     stops after `max_seconds` so a crafted/looping file can't exhaust memory, and
     the demuxer/protocol are whitelisted to prevent SSRF via playlist/concat inputs.
+    Input rate and channel count are bounded before resampling so a crafted header
+    can't inflate intermediate buffers.
     """
     max_samples = max_seconds * SAMPLE_RATE
     chunks: list[np.ndarray] = []
@@ -66,8 +70,19 @@ def decode_audio_bytes(data: bytes, max_seconds: int = 30) -> np.ndarray:
             raise ValueError(f"unsupported container: {container.format.name}")
         if not container.streams.audio:
             raise ValueError("no audio stream")
+        stream = container.streams.audio[0]
+        cc = stream.codec_context
+        if cc.sample_rate and not (DECODE_MIN_SR <= cc.sample_rate <= DECODE_MAX_SR):
+            raise ValueError(f"unsupported sample rate: {cc.sample_rate}")
+        if cc.channels and cc.channels > DECODE_MAX_CHANNELS:
+            raise ValueError(f"too many channels: {cc.channels}")
         resampler = av.AudioResampler(format="flt", layout="mono", rate=SAMPLE_RATE)
-        for frame in container.decode(container.streams.audio[0]):
+        for frame in container.decode(stream):
+            # Rate/channels can change mid-stream; re-validate before resampling.
+            if frame.sample_rate and not (DECODE_MIN_SR <= frame.sample_rate <= DECODE_MAX_SR):
+                raise ValueError(f"unsupported sample rate: {frame.sample_rate}")
+            if len(frame.layout.channels) > DECODE_MAX_CHANNELS:
+                raise ValueError("too many channels")
             for rframe in resampler.resample(frame):
                 arr = rframe.to_ndarray().reshape(-1)
                 chunks.append(arr)
