@@ -1,11 +1,13 @@
 """Quran speech recognition (Tarteel's Quran-tuned Whisper, Apache-2.0)."""
 from __future__ import annotations
 
+import io
 import os
 import threading
 import time
 from math import gcd
 
+import av
 import numpy as np
 import soundfile as sf
 import torch
@@ -38,6 +40,43 @@ def resample(data: np.ndarray, sr: int) -> np.ndarray:
 
 def pcm16_to_float(buf: bytes) -> np.ndarray:
     return np.frombuffer(buf, dtype="<i2").astype(np.float32) / 32768.0
+
+
+# Containers we accept from uploads. The format_whitelist stops ffmpeg from
+# selecting a demuxer like hls/concat that can reference external files/URLs
+# (SSRF), and protocol_whitelist="" blocks all external IO — the body is already
+# fully in memory, so no protocol access is ever legitimately needed.
+_FORMAT_WHITELIST = "mov,mp4,m4a,3gp,3g2,mj2,wav,ogg,mp3,aac,flac,matroska,webm"
+_ALLOWED_DEMUXERS = {"mov,mp4,m4a,3gp,3g2,mj2", "wav", "ogg", "mp3", "aac", "flac", "matroska,webm"}
+
+
+def decode_audio_bytes(data: bytes, max_seconds: int = 30) -> np.ndarray:
+    """Decode compressed audio (m4a/aac/mp3/ogg/opus/wav) → mono float32 16 kHz.
+
+    Uses PyAV (bundled ffmpeg) so phone recordings (AAC/m4a) are accepted. Decoding
+    stops after `max_seconds` so a crafted/looping file can't exhaust memory, and
+    the demuxer/protocol are whitelisted to prevent SSRF via playlist/concat inputs.
+    """
+    max_samples = max_seconds * SAMPLE_RATE
+    chunks: list[np.ndarray] = []
+    total = 0
+    with av.open(io.BytesIO(data),
+                 options={"format_whitelist": _FORMAT_WHITELIST, "protocol_whitelist": ""}) as container:
+        if container.format.name not in _ALLOWED_DEMUXERS:
+            raise ValueError(f"unsupported container: {container.format.name}")
+        if not container.streams.audio:
+            raise ValueError("no audio stream")
+        resampler = av.AudioResampler(format="flt", layout="mono", rate=SAMPLE_RATE)
+        for frame in container.decode(container.streams.audio[0]):
+            for rframe in resampler.resample(frame):
+                arr = rframe.to_ndarray().reshape(-1)
+                chunks.append(arr)
+                total += arr.shape[0]
+            if total >= max_samples:
+                break
+    if not chunks:
+        return np.zeros(0, dtype=np.float32)
+    return np.concatenate(chunks)[:max_samples].astype(np.float32)
 
 
 def rms_dbfs(audio: np.ndarray) -> float:

@@ -16,7 +16,6 @@ WebSocket /ws/recite protocol
 from __future__ import annotations
 
 import asyncio
-import io
 import json
 import logging
 import os
@@ -24,12 +23,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .asr import SAMPLE_RATE, QuranASR, pcm16_to_float, resample
+from .asr import SAMPLE_RATE, QuranASR, decode_audio_bytes, pcm16_to_float, resample
 from .normalize import normalize_words
 from .quran_index import QuranIndex
 from .session import StreamingSession
@@ -116,18 +114,13 @@ async def search_audio(request: Request, top_k: int = 5, sample_rate: int = SAMP
         raw = pcm16_to_float(body)[: MAX_UPLOAD_S * sample_rate]  # truncate before resample
         audio = resample(raw, sample_rate)
     else:
+        # PyAV (bundled ffmpeg) decodes any container the phone produces — notably
+        # AAC/m4a from Android/iOS recording — straight to mono 16 kHz, capping the
+        # decoded length internally so a compressed "bomb" can't exhaust memory.
         try:
-            # frames cap bounds decode cost even for a crafted header.
-            data, sr = sf.read(io.BytesIO(body), dtype="float32", always_2d=True,
-                               frames=MAX_UPLOAD_S * MAX_SR)
-        except Exception as exc:  # soundfile raises a generic RuntimeError subclass
+            audio = await asyncio.to_thread(decode_audio_bytes, body, MAX_UPLOAD_S)
+        except Exception as exc:
             raise HTTPException(415, f"unsupported audio: {exc}") from exc
-        # The rate comes from the (untrusted) file header: validate before resampling,
-        # else a crafted header forces a huge resample ratio. Cap channels too.
-        _check_sr(sr)
-        if data.shape[1] > 8:
-            raise HTTPException(415, "too many audio channels")
-        audio = resample(data.mean(axis=1)[: MAX_UPLOAD_S * sr], sr)
     audio = audio[: MAX_UPLOAD_S * SAMPLE_RATE]
     text, latency = await asyncio.to_thread(_asr().transcribe, audio)
     words = normalize_words(text)
