@@ -27,7 +27,7 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .asr import SAMPLE_RATE, QuranASR, decode_audio_bytes, pcm16_to_float, resample
+from .asr import SAMPLE_RATE, QuranASR, decode_audio_bytes, pcm16_to_float, resample, save_wav
 from .normalize import normalize_words
 from .quran_index import QuranIndex
 from .session import StreamingSession
@@ -39,8 +39,27 @@ MIN_SR, MAX_SR = 8_000, 48_000     # accepted input sample rates
 MAX_BODY_BYTES = 12 * 1024 * 1024  # ~30 s of 16-bit 48 kHz mono + file overhead
 MAX_WS_FRAME_BYTES = 1024 * 1024   # one streamed PCM frame
 MAX_QUERY_WORDS = 64               # cap the O(n*m) alignment DP (see quran_index)
+SAVE_UPLOADS = os.environ.get("QURAN_SAVE_UPLOADS")  # dir to capture a real-voice eval set
 
 state: dict = {}
+
+
+def _save_upload(audio: np.ndarray, text: str, cands: list[dict]) -> None:
+    """Persist the decoded clip + ASR/match result for offline model benchmarking."""
+    try:
+        import datetime
+        import json
+        d = Path(SAVE_UPLOADS)
+        d.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        save_wav(str(d / f"{stamp}.wav"), audio)
+        top = cands[0] if cands else {}
+        with open(d / "log.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"file": f"{stamp}.wav", "text": text,
+                                "top": top.get("verse_keys"), "score": top.get("score")},
+                               ensure_ascii=False) + "\n")
+    except Exception as exc:  # capture must never break the request
+        log.warning("save upload failed: %s", exc)
 
 
 def _check_sr(sr: int) -> int:
@@ -124,7 +143,11 @@ async def search_audio(request: Request, top_k: int = 5, sample_rate: int = SAMP
     audio = audio[: MAX_UPLOAD_S * SAMPLE_RATE]
     text, latency = await asyncio.to_thread(_asr().transcribe, audio)
     words = normalize_words(text)
-    return {"text": text, "latency": round(latency, 3), "candidates": _candidates(words, top_k)}
+    cands = _candidates(words, top_k)
+    # Opt-in capture for building a real-voice eval set (QURAN_SAVE_UPLOADS=<dir>).
+    if SAVE_UPLOADS:
+        _save_upload(audio, text, cands)
+    return {"text": text, "latency": round(latency, 3), "candidates": cands}
 
 
 @app.websocket("/ws/recite")

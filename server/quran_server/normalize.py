@@ -25,3 +25,23 @@ def normalize_text(text: str) -> str:
 def normalize_words(text: str) -> list[str]:
     norm = normalize_text(text)
     return norm.split() if norm else []
+
+
+# Phonetic folding for MATCHING ONLY (never display): collapse consonants that
+# Arabic ASR routinely confuses, so a wrong letter still aligns. Targets are
+# fixed points, so folding is idempotent.
+_FOLD_MAP = str.maketrans({
+    "ث": "ت", "ط": "ت",          # ت ث ط
+    "ص": "س",                     # س ص
+    "ذ": "ز", "ظ": "ز",          # ز ذ ظ
+    "ض": "د",                     # د ض
+    "ق": "ك",                     # ك ق
+    "ح": "ه",                     # ه ح
+    "ى": "ا",                     # alef maqsura already -> ي in normalize; guard anyway
+    "ء": "ا",
+    "ة": "ه",
+})
+
+
+def fold_phonetic(norm: str) -> str:
+    return norm.translate(_FOLD_MAP)

@@ -101,6 +101,38 @@ def rms_dbfs(audio: np.ndarray) -> float:
     return 20 * np.log10(max(rms, 1e-6))
 
 
+def peak_normalize(audio: np.ndarray, target: float = 0.97) -> np.ndarray:
+    """Scale so the loudest sample hits `target`. Helps quiet/distant recordings."""
+    if audio.size == 0:
+        return audio
+    peak = float(np.max(np.abs(audio)))
+    return (audio * (target / peak)).astype(np.float32) if peak > 1e-5 else audio
+
+
+def trim_silence(audio: np.ndarray, frame: int = 512, thresh_db: float = -40.0) -> np.ndarray:
+    """Drop leading/trailing near-silence (relative to the clip's own peak)."""
+    if audio.size < frame * 2:
+        return audio
+    n = (len(audio) // frame) * frame
+    frames = audio[:n].reshape(-1, frame)
+    energy = np.sqrt(np.mean(frames ** 2, axis=1) + 1e-12)
+    keep = energy > (np.max(energy) * (10 ** (thresh_db / 20)))
+    if not keep.any():
+        return audio
+    idx = np.where(keep)[0]
+    return audio[idx[0] * frame: (idx[-1] + 1) * frame]
+
+
+def preprocess_for_asr(audio: np.ndarray) -> np.ndarray:
+    """Clip clean-up before recognition: trim silence, then normalize level."""
+    return peak_normalize(trim_silence(audio))
+
+
+def save_wav(path: str, audio: np.ndarray) -> None:
+    """Write mono 16 kHz PCM16 — the exact signal the model saw — for eval sets."""
+    sf.write(path, audio, SAMPLE_RATE, subtype="PCM_16")
+
+
 class QuranASR:
     def __init__(self, model_name: str | None = None, device: str | None = None):
         model_name = model_name or DEFAULT_MODEL
@@ -115,14 +147,19 @@ class QuranASR:
             self.model.generation_config = GenerationConfig.from_pretrained(f"openai/whisper-{size}")
         self.model.to(self.device).eval()
         self.model_name = model_name
+        self.default_beams = int(os.environ.get("QURAN_ASR_BEAMS", "1"))
         self._lock = threading.Lock()  # one GPU/CPU inference at a time
 
-    def transcribe(self, audio: np.ndarray, prompt: str | None = None) -> tuple[str, float]:
+    def transcribe(self, audio: np.ndarray, prompt: str | None = None,
+                   num_beams: int | None = None) -> tuple[str, float]:
         """Return (text, seconds taken). `audio` is mono float32 16 kHz, ≤ 30 s."""
         t0 = time.perf_counter()
         feats = self.processor(audio, sampling_rate=SAMPLE_RATE, return_tensors="pt").input_features
         feats = feats.to(self.device, self.dtype)
+        beams = self.default_beams if num_beams is None else num_beams
         kwargs: dict = {"language": "ar", "task": "transcribe"}
+        if beams > 1:
+            kwargs["num_beams"] = beams
         if prompt:
             kwargs["prompt_ids"] = torch.tensor(self.processor.get_prompt_ids(prompt), device=self.device)
         with self._lock, torch.inference_mode():

@@ -20,7 +20,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "server"))
-from quran_server.asr import SAMPLE_RATE, QuranASR, load_audio  # noqa: E402
+from quran_server.asr import SAMPLE_RATE, QuranASR, load_audio, preprocess_for_asr  # noqa: E402
 from quran_server.normalize import normalize_words  # noqa: E402
 from quran_server.quran_index import QuranIndex, align  # noqa: E402
 
@@ -57,14 +57,18 @@ def main() -> None:
     ap.add_argument("--model", default=None)
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--noise-snr", type=float, default=None, help="add white noise at this SNR (dB)")
+    ap.add_argument("--beams", type=int, default=1, help="ASR beam search width")
+    ap.add_argument("--normalize", action="store_true", help="trim silence + peak-normalize clip")
+    ap.add_argument("--fold", action="store_true", help="phonetic folding in the matcher")
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
     nrng = np.random.default_rng(args.seed)
-    index = QuranIndex(ROOT / "data" / "quran.db")
+    index = QuranIndex(ROOT / "data" / "quran.db", fold=args.fold)
     asr = QuranASR(args.model)
     verse_keys = list(index.verse_start.keys())
-    print(f"model={asr.model_name} device={asr.device} n={args.n} noise={args.noise_snr}")
+    print(f"model={asr.model_name} device={asr.device} n={args.n} noise={args.noise_snr} "
+          f"beams={args.beams} normalize={args.normalize} fold={args.fold}")
 
     top1 = top3 = tie1 = 0
     latencies: list[float] = []
@@ -81,8 +85,10 @@ def main() -> None:
                 audio = audio[off:off + clip_len]
             if args.noise_snr is not None:
                 audio = add_noise(audio, args.noise_snr, nrng)
+            if args.normalize:
+                audio = preprocess_for_asr(audio)
             t0 = time.perf_counter()
-            text, _ = asr.transcribe(audio)
+            text, _ = asr.transcribe(audio, num_beams=args.beams)
             words = normalize_words(text)
             cands = index.search(words, top_k=3)
             latencies.append(time.perf_counter() - t0)

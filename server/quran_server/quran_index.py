@@ -16,6 +16,8 @@ from pathlib import Path
 from rapidfuzz import process
 from rapidfuzz.distance import Levenshtein
 
+from .normalize import fold_phonetic
+
 # Alignment scoring (per word). Match reward is 2*sim-1 in [-1, 1].
 GAP_QUERY = -0.6   # ASR produced a word not in the reference (insertion)
 GAP_REF = -0.6     # reference word not recited / not recognized (deletion)
@@ -124,14 +126,17 @@ def align(query: list[str], ref: list[str], ref_offset: int) -> Alignment | None
 
 
 class QuranIndex:
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path, fold: bool = False):
+        # When fold=True, matching runs on phonetically-folded words (ASR confusions
+        # like ث/ت/ط collapse). Display never uses these; the server returns ids.
+        self._fold = fold
         db = sqlite3.connect(str(db_path))
         rows = db.execute(
             "SELECT gidx, id, norm, verse_key, page, line, surah, ayah, position "
             "FROM words WHERE gidx IS NOT NULL ORDER BY gidx"
         ).fetchall()
         db.close()
-        self.norm: list[str] = [r[2] for r in rows]
+        self.norm: list[str] = [self.fold_word(r[2]) for r in rows]
         self.word_id: list[int] = [r[1] for r in rows]
         self.verse_key: list[str] = [r[3] for r in rows]
         self.page: list[int] = [r[4] for r in rows]
@@ -152,6 +157,12 @@ class QuranIndex:
             if g + 1 < self.size:
                 self._bigrams[(self.norm[g], self.norm[g + 1])].append(g)
         self._vocab: list[str] = list(self._unigrams.keys())
+
+    def fold_word(self, w: str) -> str:
+        return fold_phonetic(w) if self._fold else w
+
+    def fold(self, words: list[str]) -> list[str]:
+        return [self.fold_word(w) for w in words] if self._fold else words
 
     # ------------------------------------------------------------------ search
     def _vote(self, query: list[str]) -> dict[int, float]:
@@ -191,6 +202,7 @@ class QuranIndex:
         """Find where in the Quran `query` (normalized words) was recited."""
         if not query:
             return []
+        query = self.fold(query)
         votes = self._vote(query)
         # Cluster nearby offsets (insertions/deletions shift the offset a little).
         ranked = sorted(votes.items(), key=lambda kv: -kv[1])
