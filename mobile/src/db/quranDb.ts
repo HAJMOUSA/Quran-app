@@ -67,6 +67,14 @@ export async function getPageWords(page: number): Promise<WordRow[]> {
     `SELECT id,verse_key,surah,ayah,position,page,line,char_type,code_v2,gidx
      FROM words WHERE page=? ORDER BY line, surah, ayah, position`, [page]);
 }
+/** Recitable word ids on a page (char_type='word'), for memorization grading. */
+export async function getPageWordIds(page: number): Promise<number[]> {
+  const d = await openDb();
+  const rows = await d.getAllAsync<{ id: number }>(
+    `SELECT id FROM words WHERE page=? AND char_type='word'`, [page]);
+  return rows.map((r) => r.id);
+}
+
 /** Recitable words of a surah (char_type='word'), for aligning audio segments. */
 export async function getSurahWordIndex(surah: number): Promise<WordIndexRow[]> {
   const d = await openDb();

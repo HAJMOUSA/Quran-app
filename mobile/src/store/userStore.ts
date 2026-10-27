@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { newCard, review, type SrsCard } from "../memorize/srs";
 
 export interface Bookmark { verseKey: string; addedAt: number; }
 export interface Settings {
@@ -22,6 +23,14 @@ interface UserState {
   pendingJump: number | null;
   requestJump: (page: number) => void;
   clearPendingJump: () => void;
+  // Memorization (SM-2, keyed by Mushaf page).
+  memorization: Record<number, SrsCard>;
+  addMemorizePage: (page: number) => void;
+  removeMemorizePage: (page: number) => void;
+  gradePage: (page: number, quality: number) => void;
+  memorizeSession: number | null;   // page being actively memorized (drives Mushaf mode)
+  startMemorize: (page: number) => void;
+  endMemorize: () => void;
 }
 const clampPage = (p: number) => Math.min(604, Math.max(1, Math.round(p)));
 
@@ -45,6 +54,25 @@ export const useUserStore = create<UserState>()(
       pendingJump: null,
       requestJump: (page) => { const p = clampPage(page); set({ lastPage: p, pendingJump: p }); },
       clearPendingJump: () => set({ pendingJump: null }),
+      memorization: {},
+      addMemorizePage: (page) => {
+        const p = clampPage(page);
+        if (get().memorization[p]) return;
+        set({ memorization: { ...get().memorization, [p]: newCard() } });
+      },
+      removeMemorizePage: (page) => {
+        const m = { ...get().memorization };
+        delete m[clampPage(page)];
+        set({ memorization: m });
+      },
+      gradePage: (page, quality) => {
+        const p = clampPage(page);
+        const card = get().memorization[p] ?? newCard();
+        set({ memorization: { ...get().memorization, [p]: review(card, quality) } });
+      },
+      memorizeSession: null,
+      startMemorize: (page) => { const p = clampPage(page); set({ memorizeSession: p, pendingJump: p, lastPage: p }); },
+      endMemorize: () => set({ memorizeSession: null }),
     }),
     {
       name: "quran-user",
@@ -53,7 +81,11 @@ export const useUserStore = create<UserState>()(
       // fall back to defaults instead of being dropped by persisted older state.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<UserState>;
-        return { ...current, ...p, settings: { ...current.settings, ...(p.settings ?? {}) } };
+        return {
+          ...current, ...p,
+          settings: { ...current.settings, ...(p.settings ?? {}) },
+          memorizeSession: null,   // never resume a memorize session across launches
+        };
       },
     },
   ),
