@@ -1,6 +1,8 @@
 """Streaming recitation session: PCM in → rolling-window Whisper → Tracker events out."""
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from .asr import SAMPLE_RATE, QuranASR, rms_dbfs
@@ -10,7 +12,7 @@ from .tracker import Tracker
 
 HOP_S = 1.0          # run recognition after this much new audio
 WINDOW_S = 8.0       # recognize at most the trailing window
-VAD_DBFS = -45.0     # windows quieter than this are treated as silence
+VAD_DBFS = float(os.environ.get("QURAN_VAD_DBFS", "-45"))  # quieter windows = silence
 SILENCE_RESET_S = 2.0  # this much trailing silence drops buffered audio
 
 

@@ -9,9 +9,10 @@ import type { WordRow } from "../db/schema";
 const { width } = Dimensions.get("window");
 const PAGES = 604;
 
-function PageHost({ page, selectedVerseKey, onSelectAyah, activeWordId, playingVerseKey }: {
+function PageHost({ page, selectedVerseKey, onSelectAyah, activeWordId, playingVerseKey, wordStatuses }: {
   page: number; selectedVerseKey: string | null; onSelectAyah: (k: string) => void;
   activeWordId: number | null; playingVerseKey: string | null;
+  wordStatuses?: Record<number, "correct" | "wrong" | "missed">;
 }) {
   const [data, setData] = useState<{ words: WordRow[]; family: string } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -36,7 +37,7 @@ function PageHost({ page, selectedVerseKey, onSelectAyah, activeWordId, playingV
     <View style={{ width }}>
       <MushafPage words={data.words} fontFamily={data.family}
         selectedVerseKey={selectedVerseKey} onSelectAyah={onSelectAyah}
-        activeWordId={activeWordId} playingVerseKey={playingVerseKey} />
+        activeWordId={activeWordId} playingVerseKey={playingVerseKey} wordStatuses={wordStatuses} />
     </View>
   );
 }
@@ -47,10 +48,11 @@ interface Props {
   initialPage: number; selectedVerseKey: string | null;
   onSelectAyah: (k: string) => void; onPageChange: (page: number) => void;
   activeWordId?: number | null; playingVerseKey?: string | null;
+  wordStatuses?: Record<number, "correct" | "wrong" | "missed">;
 }
 
 export const PagePager = forwardRef<PagePagerHandle, Props>(function PagePager(
-  { initialPage, selectedVerseKey, onSelectAyah, onPageChange, activeWordId = null, playingVerseKey = null },
+  { initialPage, selectedVerseKey, onSelectAyah, onPageChange, activeWordId = null, playingVerseKey = null, wordStatuses },
   ref,
 ) {
   // RTL: page 1 is the rightmost. With `inverted`, list index 0 renders on the right,
@@ -64,8 +66,8 @@ export const PagePager = forwardRef<PagePagerHandle, Props>(function PagePager(
   }), []);
   const renderItem = useCallback(({ index }: { index: number }) => (
     <PageHost page={PAGES - index} selectedVerseKey={selectedVerseKey} onSelectAyah={onSelectAyah}
-      activeWordId={activeWordId} playingVerseKey={playingVerseKey} />
-  ), [selectedVerseKey, onSelectAyah, activeWordId, playingVerseKey]);
+      activeWordId={activeWordId} playingVerseKey={playingVerseKey} wordStatuses={wordStatuses} />
+  ), [selectedVerseKey, onSelectAyah, activeWordId, playingVerseKey, wordStatuses]);
   return (
     <FlatList
       ref={listRef}
