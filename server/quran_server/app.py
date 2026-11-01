@@ -106,11 +106,16 @@ def _candidates(words: list[str], top_k: int) -> list[dict]:
 def get_model(name: str):
     """Serve a ggml model for on-device ASR (Phase 6). Dev convenience: the app
     downloads it once to its sandbox, then runs fully offline."""
+    import re
     from fastapi.responses import FileResponse
-    if "/" in name or "\\" in name or ".." in name:
-        raise HTTPException(400, "bad name")
-    path = DB_PATH.parent / name
-    if not path.exists() or path.suffix != ".bin":
+    # Reject anything that isn't a plain <name>.bin token (blocks '/', '\\', ':',
+    # '..', drive-relative names), then verify the resolved path stays inside the
+    # models dir — defence in depth against path traversal.
+    if not re.fullmatch(r"[A-Za-z0-9._-]+\.bin", name):
+        raise HTTPException(404, "model not found")
+    base = DB_PATH.parent.resolve()
+    path = (base / name).resolve()
+    if not path.is_relative_to(base) or not path.is_file():
         raise HTTPException(404, "model not found")
     return FileResponse(str(path), media_type="application/octet-stream")
 
