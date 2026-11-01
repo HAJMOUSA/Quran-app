@@ -11,7 +11,7 @@ from .quran_index import QuranIndex
 from .tracker import Tracker
 
 HOP_S = 1.0          # run recognition after this much new audio
-WINDOW_S = 8.0       # recognize at most the trailing window
+WINDOW_S = 6.0       # recognize at most the trailing window (shorter = fresher)
 VAD_DBFS = float(os.environ.get("QURAN_VAD_DBFS", "-45"))  # quieter windows = silence
 SILENCE_RESET_S = 2.0  # this much trailing silence drops buffered audio
 

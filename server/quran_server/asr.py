@@ -8,18 +8,16 @@ import time
 from math import gcd
 
 import av
+import ctranslate2
 import numpy as np
 import soundfile as sf
-import torch
+from faster_whisper import WhisperModel
 from scipy.signal import resample_poly
-from transformers import GenerationConfig, WhisperForConditionalGeneration, WhisperProcessor
 
 SAMPLE_RATE = 16_000
-# base is more accurate; tiny is ~3.5x faster and is the default without a GPU.
-DEFAULT_MODEL = os.environ.get(
-    "QURAN_ASR_MODEL",
-    "tarteel-ai/whisper-base-ar-quran" if torch.cuda.is_available() else "tarteel-ai/whisper-tiny-ar-quran",
-)
+# faster-whisper (CTranslate2) runs base fast enough on CPU (int8) that there's no
+# reason to drop to tiny; on a GPU it loads in float16. Override with QURAN_ASR_MODEL.
+DEFAULT_MODEL = os.environ.get("QURAN_ASR_MODEL", "tarteel-ai/whisper-base-ar-quran")
 
 
 def load_audio(path: str, start_s: float = 0.0, end_s: float | None = None) -> np.ndarray:
@@ -133,38 +131,47 @@ def save_wav(path: str, audio: np.ndarray) -> None:
     sf.write(path, audio, SAMPLE_RATE, subtype="PCM_16")
 
 
+def _ensure_ct2(model_name: str, quant: str) -> str:
+    """Return a CTranslate2 model dir for `model_name`, converting from the HF
+    checkpoint on first use. Cached under QURAN_CT2_DIR (or HF_HOME/ct2) so it
+    survives restarts; conversion needs torch+transformers but inference doesn't."""
+    from pathlib import Path
+    base = Path(os.environ.get("QURAN_CT2_DIR") or (Path(os.environ.get("HF_HOME", "/tmp")) / "ct2"))
+    out = base / (model_name.replace("/", "__").strip("./") + "-" + quant)
+    if (out / "model.bin").exists():
+        return str(out)
+    out.mkdir(parents=True, exist_ok=True)
+    from ctranslate2.converters import TransformersConverter
+    from transformers import WhisperProcessor
+    TransformersConverter(model_name, copy_files=["preprocessor_config.json"]).convert(
+        str(out), quantization=quant, force=True)
+    if not (out / "tokenizer.json").exists():  # faster-whisper needs the fast tokenizer
+        WhisperProcessor.from_pretrained(model_name).tokenizer.save_pretrained(str(out))
+    return str(out)
+
+
 class QuranASR:
     def __init__(self, model_name: str | None = None, device: str | None = None):
         model_name = model_name or DEFAULT_MODEL
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.dtype = torch.float16 if self.device == "cuda" else torch.float32
-        self.processor = WhisperProcessor.from_pretrained(model_name)
-        self.model = WhisperForConditionalGeneration.from_pretrained(model_name, torch_dtype=self.dtype)
-        if not hasattr(self.model.generation_config, "lang_to_id"):
-            # Tarteel checkpoints predate the multilingual generation config; borrow it
-            # from the matching OpenAI base model so language/task can be forced.
-            size = next((s for s in ("tiny", "base", "small", "medium") if s in model_name), "base")
-            self.model.generation_config = GenerationConfig.from_pretrained(f"openai/whisper-{size}")
-        self.model.to(self.device).eval()
+        has_cuda = ctranslate2.get_cuda_device_count() > 0
+        self.device = device or ("cuda" if has_cuda else "cpu")
+        compute_type = "float16" if self.device == "cuda" else "int8"
+        ct2_dir = _ensure_ct2(model_name, compute_type)
+        self.model = WhisperModel(ct2_dir, device=self.device, compute_type=compute_type,
+                                  cpu_threads=os.cpu_count() or 4)
         self.model_name = model_name
         self.default_beams = int(os.environ.get("QURAN_ASR_BEAMS", "1"))
-        self._lock = threading.Lock()  # one GPU/CPU inference at a time
+        self._lock = threading.Lock()  # one inference at a time
 
     def transcribe(self, audio: np.ndarray, prompt: str | None = None,
                    num_beams: int | None = None) -> tuple[str, float]:
         """Return (text, seconds taken). `audio` is mono float32 16 kHz, ≤ 30 s."""
         t0 = time.perf_counter()
-        feats = self.processor(audio, sampling_rate=SAMPLE_RATE, return_tensors="pt").input_features
-        feats = feats.to(self.device, self.dtype)
         beams = self.default_beams if num_beams is None else num_beams
-        kwargs: dict = {"language": "ar", "task": "transcribe"}
-        if beams > 1:
-            kwargs["num_beams"] = beams
-        if prompt:
-            kwargs["prompt_ids"] = torch.tensor(self.processor.get_prompt_ids(prompt), device=self.device)
-        with self._lock, torch.inference_mode():
-            ids = self.model.generate(feats, **kwargs)
-        text = self.processor.batch_decode(ids, skip_special_tokens=True)[0]
-        if prompt and text.strip().startswith(prompt.strip()):
-            text = text.strip()[len(prompt.strip()):]
+        with self._lock:
+            segments, _ = self.model.transcribe(
+                audio, language="ar", task="transcribe", beam_size=max(1, beams),
+                without_timestamps=True, condition_on_previous_text=False,
+                vad_filter=False, initial_prompt=prompt or None)
+            text = "".join(s.text for s in segments)
         return text.strip(), time.perf_counter() - t0

@@ -1,7 +1,9 @@
 # Install torch first for your platform (CPU or CUDA), see README.
 fastapi>=0.115
 uvicorn[standard]>=0.30
-transformers>=4.45
+faster-whisper>=1.1   # CTranslate2 inference (int8 CPU / float16 GPU)
+transformers>=4.45    # only for the one-time HF->CT2 conversion
+
 soundfile>=0.13      # libsndfile >= 1.1 reads MP3
 av>=12            # decode phone audio (AAC/m4a) via bundled ffmpeg
 scipy>=1.11
