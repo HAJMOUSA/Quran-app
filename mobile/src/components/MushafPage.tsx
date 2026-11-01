@@ -44,7 +44,7 @@ function MushafLineView({
   }, []);
   return (
     <View style={styles.lineClip}>
-      <View style={[styles.line, { transform: [{ scaleX: scale }] }]} onLayout={onLayout}>
+      <View style={[styles.line, { transform: [{ scaleX: scale }, { scaleY: scale }] }]} onLayout={onLayout}>
         {line.words.map((word) => {
           const status = wordStatuses?.[word.id];
           // Ayah-end markers (numbers) always stay visible so the page still reads;

@@ -42,7 +42,7 @@ export const useUserStore = create<UserState>()(
       lastPage: 1,
       bookmarks: [],
       settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7,
-        serverUrl: "http://localhost:8000", offlineFollow: false },
+        serverUrl: "http://100.123.82.47:8000", offlineFollow: false },
       setLastPage: (p) => set({ lastPage: clampPage(p) }),
       toggleBookmark: (verseKey) => {
         const exists = get().bookmarks.some((b) => b.verseKey === verseKey);

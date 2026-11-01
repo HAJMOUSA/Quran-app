@@ -17,3 +17,7 @@ mobile/assets/db/quran.db
 *.apk
 *.aab
 .DS_Store
+
+# local tooling / scratch (not for the repo)
+server/.convert/
+/.*.png

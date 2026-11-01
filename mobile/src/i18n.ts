@@ -41,6 +41,7 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "follow.stop": { en: "Stop", ar: "إيقاف" },
   "follow.errorConnect": { en: "Couldn't reach the server. Tap to retry.", ar: "تعذّر الاتصال بالخادم. اضغط لإعادة المحاولة." },
   "follow.errorNoAudio": { en: "No recitation detected. Check the mic and tap to retry.", ar: "لم يتم التقاط تلاوة. تحقّق من الميكروفون واضغط لإعادة المحاولة." },
+  "follow.errorModel": { en: "Couldn't load the offline model. Tap to retry.", ar: "تعذّر تحميل النموذج دون اتصال. اضغط لإعادة المحاولة." },
   "follow.retry": { en: "Retry", ar: "إعادة" },
   "tab.memorize": { en: "Memorize", ar: "الحفظ" },
   "memorize.title": { en: "Memorization", ar: "الحفظ" },

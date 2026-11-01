@@ -54,6 +54,8 @@ export function useFollowAlong(serverUrl: string, onPage?: (page: number) => voi
     clearWatchdog();
     watchdog.current = setTimeout(() => failRef.current(t("follow.errorNoAudio")), LISTEN_TIMEOUT_MS);
   }, [clearWatchdog]);
+  const armWatchdogRef = useRef(armWatchdog);
+  armWatchdogRef.current = armWatchdog;
 
   const handleEvent = useCallback((ev: ReciteEvent | TrackerEvent) => {
     if (ev.type === "track" && ev.position != null) {
@@ -93,6 +95,10 @@ export function useFollowAlong(serverUrl: string, onPage?: (page: number) => voi
     if (offlineRef.current) {
       const s = session.current;
       if (!s) return;
+      // Offline emits no events during silence, so incoming mic frames are the
+      // "pipeline alive" signal that keeps the no-audio watchdog from falsely
+      // firing while the reciter is quiet or on-device inference is slow.
+      if (!trackingStarted.current) armWatchdogRef.current();
       s.addAudio(new Int16Array(buf.data));
       if (s.ready() && !s.busy) {
         s.step().then((evs) => evs.forEach((e) => handleEventRef.current(e))).catch((e) => console.warn("local step", e));
@@ -149,7 +155,7 @@ export function useFollowAlong(serverUrl: string, onPage?: (page: number) => voi
       armWatchdog();
     } catch (e) {
       console.warn("follow-along start failed", e);
-      fail(offline ? t("follow.errorNoAudio") : t("follow.errorConnect"));
+      fail(offline ? t("follow.errorModel") : t("follow.errorConnect"));
     }
   }, [stream, serverUrl, handleEvent, fail, armWatchdog]);
 

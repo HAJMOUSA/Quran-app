@@ -26,9 +26,18 @@ export async function getWhisper(serverUrl: string): Promise<WhisperContext> {
   if (loading) return loading;
   loading = (async () => {
     const filePath = await ensureModel(serverUrl);
-    ctx = await initWhisper({ filePath, useGpu: true });
+    try {
+      // GPU is faster but flaky on some Android GPUs (e.g. Adreno/Vulkan fails
+      // shader compilation). Fall back to CPU, which is reliable everywhere.
+      ctx = await initWhisper({ filePath, useGpu: true });
+    } catch (gpuErr) {
+      console.warn("whisper GPU init failed; retrying on CPU", gpuErr);
+      ctx = await initWhisper({ filePath, useGpu: false });
+    }
     return ctx;
   })();
+  // Let a failed init be retried instead of caching the rejected promise.
+  loading.catch(() => { loading = null; });
   return loading;
 }
 
