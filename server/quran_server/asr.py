@@ -136,7 +136,20 @@ def _ensure_ct2(model_name: str, quant: str) -> str:
     checkpoint on first use. Cached under QURAN_CT2_DIR (or HF_HOME/ct2) so it
     survives restarts; conversion needs torch+transformers but inference doesn't."""
     from pathlib import Path
-    base = Path(os.environ.get("QURAN_CT2_DIR") or (Path(os.environ.get("HF_HOME", "/tmp")) / "ct2"))
+    # Prefer an explicit dir, then the HF cache (a private volume in Docker); fall
+    # back to a user-private cache — never a world-writable /tmp path an attacker
+    # could pre-seed with a poisoned model.
+    if os.environ.get("QURAN_CT2_DIR"):
+        base = Path(os.environ["QURAN_CT2_DIR"])
+    elif os.environ.get("HF_HOME"):
+        base = Path(os.environ["HF_HOME"]) / "ct2"
+    else:
+        base = Path.home() / ".cache" / "quran_server" / "ct2"
+    base.mkdir(parents=True, exist_ok=True)
+    try:
+        base.chmod(0o700)
+    except OSError:
+        pass
     out = base / (model_name.replace("/", "__").strip("./") + "-" + quant)
     if (out / "model.bin").exists():
         return str(out)
