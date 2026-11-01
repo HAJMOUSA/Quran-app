@@ -18,6 +18,7 @@ export default function MushafScreen() {
   const setLastPage = useUserStore((s) => s.setLastPage);
   const reciterId = useUserStore((s) => s.settings.reciterId);
   const serverUrl = useUserStore((s) => s.settings.serverUrl);
+  const offlineFollow = useUserStore((s) => s.settings.offlineFollow);
   const pendingJump = useUserStore((s) => s.pendingJump);
   const clearPendingJump = useUserStore((s) => s.clearPendingJump);
   const memorizeSession = useUserStore((s) => s.memorizeSession);
@@ -54,7 +55,7 @@ export default function MushafScreen() {
     if (memorizeSession != null && started.current !== memorizeSession) {
       started.current = memorizeSession;
       getPageWordIds(memorizeSession).then((ids) => { pageWordIds.current = ids; }).catch(() => {});
-      follow.start();
+      follow.start(null, offlineFollow);
     }
     if (memorizeSession == null) started.current = null;
   }, [memorizeSession, follow]);
@@ -78,7 +79,7 @@ export default function MushafScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      {!inMemorize && <FollowBar state={follow.state} onStop={follow.stop} />}
+      {!inMemorize && <FollowBar state={follow.state} onStop={follow.stop} onRetry={() => follow.start(null, offlineFollow)} />}
       <PagePager
         ref={pagerRef}
         initialPage={lastPage}
@@ -109,7 +110,7 @@ export default function MushafScreen() {
         />
       )}
       {!inMemorize && !follow.active && playback.state.surah == null && (
-        <Pressable style={styles.fab} onPress={() => follow.start()} testID="follow-start">
+        <Pressable style={styles.fab} onPress={() => follow.start(null, offlineFollow)} testID="follow-start">
           <Text style={styles.fabText}>🎧 {t("follow.start")}</Text>
         </Pressable>
       )}

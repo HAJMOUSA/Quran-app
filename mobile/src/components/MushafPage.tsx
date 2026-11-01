@@ -102,7 +102,11 @@ export const MushafPage = memo(function MushafPage({
 const styles = StyleSheet.create({
   page: { flex: 1, paddingHorizontal: H_PADDING, paddingVertical: 20, justifyContent: "space-evenly", overflow: "hidden" },
   lineClip: { width: AVAILABLE, alignItems: "center", overflow: "hidden" },
-  line: { flexDirection: "row-reverse", flexWrap: "nowrap", alignItems: "center" },
+  // Pin RTL explicitly: the app forces app-wide RTL (I18nManager.forceRTL) and
+  // Yoga flips `row`/`row-reverse` under RTL, so relying on `row-reverse` renders
+  // words left-to-right. `direction: "rtl"` + `row` is deterministic regardless
+  // of the global isRTL state — words (sorted first-word-first) flow right-to-left.
+  line: { flexDirection: "row", direction: "rtl", flexWrap: "nowrap", alignItems: "center" },
   word: { fontSize: 28, color: "#111", lineHeight: 46 },
   masked: { color: "transparent", backgroundColor: "#c7ced6", borderRadius: 5 }, // hidden-text placeholder
   selected: { backgroundColor: "#fdf0c8" },

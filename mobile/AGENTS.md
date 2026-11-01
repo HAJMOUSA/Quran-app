@@ -23,6 +23,10 @@ npx expo install --fix      # fix incompatible package versions
 
 Run lint and typecheck before declaring any task done.
 
+## Windows local builds
+
+- Local `expo run:android` requires ninja ≥ 1.11: RN New Architecture codegen emits object paths >260 chars (Windows MAX_PATH), and the Android SDK's cmake 3.22.1 bundles ninja 1.10.2 which aborts on them (`ninja: error: Stat(...): Filename longer than 260 characters`). This machine's `Sdk\cmake\3.22.1\bin\ninja.exe` was replaced with 1.12.1 (backup: `ninja-1.10.2.exe` in the same dir). Re-apply after any SDK cmake reinstall/update; also ensure registry `LongPathsEnabled=1` (already set here).
+
 ## Navigation & Routing
 
 - Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.

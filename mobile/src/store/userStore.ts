@@ -12,6 +12,8 @@ export interface Settings {
   // Recitation server for recite-to-search / follow-along. Default is the USB dev
   // tunnel (adb reverse tcp:8000); set to a Tailscale/LAN URL for off-cable use.
   serverUrl: string;
+  // Run follow-along ASR on-device (Phase 6) instead of streaming to the server.
+  offlineFollow: boolean;
 }
 interface UserState {
   lastPage: number;
@@ -40,7 +42,7 @@ export const useUserStore = create<UserState>()(
       lastPage: 1,
       bookmarks: [],
       settings: { language: "en", theme: "light", translationDefault: true, reciterId: 7,
-        serverUrl: "http://localhost:8000" },
+        serverUrl: "http://localhost:8000", offlineFollow: false },
       setLastPage: (p) => set({ lastPage: clampPage(p) }),
       toggleBookmark: (verseKey) => {
         const exists = get().bookmarks.some((b) => b.verseKey === verseKey);

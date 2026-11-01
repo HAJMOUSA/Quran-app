@@ -102,6 +102,19 @@ def _candidates(words: list[str], top_k: int) -> list[dict]:
     ]
 
 
+@app.get("/model/{name}")
+def get_model(name: str):
+    """Serve a ggml model for on-device ASR (Phase 6). Dev convenience: the app
+    downloads it once to its sandbox, then runs fully offline."""
+    from fastapi.responses import FileResponse
+    if "/" in name or "\\" in name or ".." in name:
+        raise HTTPException(400, "bad name")
+    path = DB_PATH.parent / name
+    if not path.exists() or path.suffix != ".bin":
+        raise HTTPException(404, "model not found")
+    return FileResponse(str(path), media_type="application/octet-stream")
+
+
 @app.get("/api/health")
 def health():
     asr = state.get("asr")

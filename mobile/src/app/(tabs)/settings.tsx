@@ -74,6 +74,13 @@ export default function SettingsScreen() {
           style={{ borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, fontSize: 14 }}
         />
       </View>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12 }}>
+        <Text style={{ fontSize: 16, flex: 1, paddingRight: 12 }}>{t("settings.offline")}</Text>
+        <Switch
+          value={settings.offlineFollow}
+          onValueChange={(on) => setSettings({ offlineFollow: on })}
+        />
+      </View>
       <Text style={{ fontSize: 18, marginTop: 20, marginBottom: 8 }}>★</Text>
       <FlatList
         data={bookmarks}

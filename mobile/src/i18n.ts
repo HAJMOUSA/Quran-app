@@ -35,9 +35,13 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "player.repeat": { en: "Repeat ayah", ar: "تكرار الآية" },
   "player.stop": { en: "Stop", ar: "إيقاف" },
   "follow.start": { en: "Follow along", ar: "تابع التلاوة" },
+  "follow.preparing": { en: "Preparing on-device model…", ar: "جارٍ تجهيز النموذج…" },
   "follow.listening": { en: "Finding your place…", ar: "جارٍ تحديد موضعك…" },
   "follow.tracking": { en: "Following", ar: "يتابع" },
   "follow.stop": { en: "Stop", ar: "إيقاف" },
+  "follow.errorConnect": { en: "Couldn't reach the server. Tap to retry.", ar: "تعذّر الاتصال بالخادم. اضغط لإعادة المحاولة." },
+  "follow.errorNoAudio": { en: "No recitation detected. Check the mic and tap to retry.", ar: "لم يتم التقاط تلاوة. تحقّق من الميكروفون واضغط لإعادة المحاولة." },
+  "follow.retry": { en: "Retry", ar: "إعادة" },
   "tab.memorize": { en: "Memorize", ar: "الحفظ" },
   "memorize.title": { en: "Memorization", ar: "الحفظ" },
   "memorize.due": { en: "Due for review", ar: "مستحقة للمراجعة" },
@@ -58,5 +62,6 @@ const STRINGS: Record<string, Record<Lang, string>> = {
   "settings.theme": { en: "Theme", ar: "المظهر" },
   "settings.reciter": { en: "Reciter", ar: "القارئ" },
   "settings.server": { en: "Recitation server URL", ar: "رابط خادم التلاوة" },
+  "settings.offline": { en: "On-device follow-along (offline)", ar: "المتابعة على الجهاز (بدون إنترنت)" },
 };
 export function t(key: string): string { return STRINGS[key]?.[lang] ?? key; }

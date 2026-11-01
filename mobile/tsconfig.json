@@ -2,7 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "types": ["jest", "node", "react"]
+    "types": ["jest", "node", "react"],
+    "paths": {
+      "whisper.rn": ["./node_modules/whisper.rn/lib/typescript/index.d.ts"]
+    }
   },
   "exclude": ["scripts", "node_modules"]
 }
