@@ -7,6 +7,11 @@ WORKDIR /app/server
 RUN pip install --no-cache-dir torch --index-url ${TORCH_INDEX}
 COPY server/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# CUDA libs so CTranslate2 can use the GPU when run with `--gpus all` (cuDNN 9 +
+# cuBLAS 12). Unused — and harmless — on CPU-only hosts. CT2 finds them via the
+# path below.
+RUN pip install --no-cache-dir nvidia-cublas-cu12 nvidia-cudnn-cu12
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.11/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.11/site-packages/nvidia/cudnn/lib
 COPY server/ .
 EXPOSE 8000
 # Build quran.db on first start if the data volume is empty.

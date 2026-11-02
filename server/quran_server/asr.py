@@ -168,7 +168,9 @@ class QuranASR:
         model_name = model_name or DEFAULT_MODEL
         has_cuda = ctranslate2.get_cuda_device_count() > 0
         self.device = device or ("cuda" if has_cuda else "cpu")
-        compute_type = "float16" if self.device == "cuda" else "int8"
+        # fp16 is fast on modern GPUs; older ones (e.g. Pascal P1000) do int8 via
+        # DP4A instead. Override with QURAN_COMPUTE_TYPE (int8 / float16 / float32).
+        compute_type = os.environ.get("QURAN_COMPUTE_TYPE") or ("float16" if self.device == "cuda" else "int8")
         ct2_dir = _ensure_ct2(model_name, compute_type)
         self.model = WhisperModel(ct2_dir, device=self.device, compute_type=compute_type,
                                   cpu_threads=os.cpu_count() or 4)
