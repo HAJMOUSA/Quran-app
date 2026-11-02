@@ -6,7 +6,8 @@ highlights where you are on the Mushaf page (inspired by Tarteel).
 
 ```
 quran-app/
-  docs/DESIGN.md          architecture, data sources, algorithms, phases
+  docs/ARCHITECTURE.md    full technical documentation (structure, stack, algorithm, deploy)
+  docs/DESIGN.md          design notes, data sources, phases
   server/                 Python FastAPI: Quran index, Whisper ASR, live tracker
   mobile/                 React Native (Expo, TypeScript) app
   data/                   generated: quran.db, audio cache (git-ignored)
