@@ -97,7 +97,9 @@ def _token_from(headers, query) -> str:
 
 @app.middleware("http")
 async def _require_token(request: Request, call_next):
-    if API_TOKEN and request.url.path != "/api/health":
+    # Use the ASGI scope path (what the router matches on), not request.url.path
+    # (Host/URL-derived), so the auth decision can't diverge from routing.
+    if API_TOKEN and request.scope.get("path") != "/api/health":
         from fastapi.responses import JSONResponse
         if not hmac.compare_digest(_token_from(request.headers, request.query_params), API_TOKEN):
             return JSONResponse({"detail": "unauthorized"}, status_code=401)
