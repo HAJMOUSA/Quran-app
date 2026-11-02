@@ -1,6 +1,7 @@
 // Recite-to-search client: upload a short recording to the server, which runs
 // Quran ASR + index search and returns the matching ayat.
 import * as FileSystem from "expo-file-system/legacy";
+import { authHeaders } from "../config";
 
 export interface AudioCandidate {
   start: number;
@@ -29,7 +30,7 @@ export async function searchByAudio(
   const res = await FileSystem.uploadAsync(`${base}/api/search/audio?top_k=${topK}`, fileUri, {
     httpMethod: "POST",
     uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    headers: { "Content-Type": "audio/mp4" },
+    headers: { "Content-Type": "audio/mp4", ...authHeaders() },
   });
   if (res.status !== 200) {
     throw new Error(`search failed (HTTP ${res.status}) ${res.body?.slice(0, 200) ?? ""}`);

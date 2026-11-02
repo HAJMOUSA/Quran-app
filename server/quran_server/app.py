@@ -16,6 +16,7 @@ WebSocket /ws/recite protocol
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -81,6 +82,26 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Quran Recitation Server", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# Optional shared access token: if QURAN_API_TOKEN is set, every request except
+# the health check must present it (Authorization: Bearer <token>, or ?token=).
+# Keeps the public endpoint usable only by builds that carry the token, not the
+# whole internet. Not a strong per-user secret — it gates casual/bot access.
+API_TOKEN = os.environ.get("QURAN_API_TOKEN")
+
+
+def _token_from(headers, query) -> str:
+    auth = headers.get("authorization", "")
+    return auth[7:] if auth[:7].lower() == "bearer " else query.get("token", "")
+
+
+@app.middleware("http")
+async def _require_token(request: Request, call_next):
+    if API_TOKEN and request.url.path != "/api/health":
+        from fastapi.responses import JSONResponse
+        if not hmac.compare_digest(_token_from(request.headers, request.query_params), API_TOKEN):
+            return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    return await call_next(request)
 
 
 def _asr() -> QuranASR:
@@ -170,6 +191,9 @@ async def search_audio(request: Request, top_k: int = 5, sample_rate: int = SAMP
 
 @app.websocket("/ws/recite")
 async def ws_recite(ws: WebSocket):
+    if API_TOKEN and not hmac.compare_digest(_token_from(ws.headers, ws.query_params), API_TOKEN):
+        await ws.close(code=1008)  # policy violation
+        return
     await ws.accept()
     asr = state.get("asr")
     if asr is None:

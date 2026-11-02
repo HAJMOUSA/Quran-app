@@ -21,6 +21,8 @@ export interface ReciteSocketHandlers {
   onError?: (e: unknown) => void;
 }
 
+import { authHeaders } from "../config";
+
 export function wsUrlFrom(serverUrl: string): string {
   const base = serverUrl.replace(/\/+$/, "");
   return base.replace(/^http/i, "ws") + "/ws/recite";
@@ -38,7 +40,8 @@ export class ReciteSocket {
   connect(sampleRate: number, startGidx: number | null = null): void {
     this.sampleRate = sampleRate;
     this.startGidx = startGidx;
-    const ws = new WebSocket(wsUrlFrom(this.serverUrl));
+    // RN's WebSocket takes an options arg (headers) that the DOM type omits.
+    const ws: WebSocket = new (WebSocket as any)(wsUrlFrom(this.serverUrl), undefined, { headers: authHeaders() });
     ws.binaryType = "arraybuffer";
     this.ws = ws;
     ws.onopen = () => {

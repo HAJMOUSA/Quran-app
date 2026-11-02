@@ -2,6 +2,7 @@
 // raw 16-bit PCM locally via whisper.rn — no server needed.
 import { initWhisper, type WhisperContext } from "whisper.rn";
 import * as FileSystem from "expo-file-system/legacy";
+import { authHeaders } from "../config";
 
 const MODEL_FILE = "ggml-tarteel-base-ar-quran.bin";
 
@@ -15,7 +16,7 @@ async function ensureModel(serverUrl: string): Promise<string> {
   if (info.exists && (info.size ?? 0) > 100 * 1024 * 1024) return target;
   await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
   const url = `${serverUrl.replace(/\/+$/, "")}/model/${MODEL_FILE}`;
-  const res = await FileSystem.downloadAsync(url, target);
+  const res = await FileSystem.downloadAsync(url, target, { headers: authHeaders() });
   if (res.status !== 200) throw new Error(`model download HTTP ${res.status}`);
   return target;
 }
