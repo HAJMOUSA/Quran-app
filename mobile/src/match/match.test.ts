@@ -78,3 +78,17 @@ test("Tracker locks, follows, and flags a wrong word", () => {
   expect(tr.statuses.get(5)).toBe("correct");  // ff
   expect(tr.statuses.get(6)).toBe("wrong");    // gg (said ZZ)
 });
+
+// A correctly-recited word must stay green even though the reference is stored
+// phonetically folded. Regression for false reds in follow-along.
+const foldRows: IndexRow[] = ["اهدنا", "الصراط", "المستقيم", "الذين", "انعمت"].map((w, g) => ({
+  gidx: g, wordId: 200 + g, norm: w,
+  verseKey: "1:6", page: 1, line: 1, surah: 1, ayah: 6, position: g + 1,
+}));
+
+test("Tracker keeps a correctly-recited word green despite a folded reference", () => {
+  const index = new QuranIndex(foldRows, true);   // folds reference: الصراط -> السرات
+  const tr = new Tracker(index, 1);               // lock on الصراط (gidx 1)
+  tr.update(["اهدنا", "الصراط", "المستقيم"]);      // ASR output = correct orthography
+  expect(tr.statuses.get(1)).toBe("correct");     // was "wrong" before the fix
+});

@@ -33,6 +33,7 @@ export class Tracker {
   reset(): void { this.mode = "search"; this.position = null; this.statuses.clear(); this.misses = 0; }
 
   update(words: string[]): TrackerEvent {
+    words = this.index.foldQuery(words);
     if (this.mode === "track") {
       const ev = this.track(words);
       if (ev !== null) return ev;
