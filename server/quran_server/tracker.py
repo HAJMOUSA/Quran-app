@@ -48,6 +48,7 @@ class Tracker:
     # ------------------------------------------------------------------ update
     def update(self, words: list[str]) -> dict:
         """Feed normalized words of the latest transcript window. Returns an event dict."""
+        words = self.index.fold(words)
         if self.state.mode == "track":
             ev = self._track(words)
             if ev is not None:

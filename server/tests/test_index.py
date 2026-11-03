@@ -111,3 +111,13 @@ def test_split_asr_word_matches_joined_mushaf_word(index):
     tr = Tracker(index, start_gidx=s)
     tr.update(words)
     assert tr.state.statuses[s + k] == "correct"
+
+
+def test_tracker_folds_query_so_correct_recitation_stays_correct():
+    if not DB.exists():
+        pytest.skip("data/quran.db missing")
+    idx = QuranIndex(DB, fold=True)            # folds reference: الصراط -> السرات
+    s = idx.verse_start["1:6"]                 # اهدنا الصراط المستقيم
+    tr = Tracker(idx, start_gidx=s)
+    tr.update(["اهدنا", "الصراط", "المستقيم"])  # ASR output = correct orthography
+    assert tr.state.statuses[s + 1] == "correct"  # الصراط; was "wrong" before the fix

@@ -71,7 +71,7 @@ def _check_sr(sr: int) -> int:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    state["index"] = QuranIndex(DB_PATH)
+    state["index"] = QuranIndex(DB_PATH, fold=True)
     if os.environ.get("QURAN_NO_ASR") != "1":
         state["asr"] = await asyncio.to_thread(QuranASR)
         # Warm-up so the first user request is not slow.
