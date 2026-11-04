@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .quran_index import CORRECT_SIM, QuranIndex, align
+from .quran_index import QuranIndex, align, word_correct
 
 LOCK_MIN_SCORE = 0.55      # search score needed to lock a position
 LOCK_MARGIN = 0.12         # best must beat the next distinct candidate by this
@@ -99,7 +99,7 @@ class Tracker:
                 continue
             g = op.gidx
             prev = st.statuses.get(g)
-            if op.op == "match" and op.sim >= CORRECT_SIM:
+            if op.op == "match" and word_correct(op.sim, len(self.index.norm[g])):
                 new = "correct"
             elif op.op == "match":
                 new = "wrong"

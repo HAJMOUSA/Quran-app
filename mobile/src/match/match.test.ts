@@ -1,5 +1,5 @@
 import { normalizeText, normalizeWords, foldPhonetic } from "./normalize";
-import { align, wordSim, CORRECT_SIM } from "./align";
+import { align, wordSim, CORRECT_SIM, wordCorrect } from "./align";
 import { QuranIndex, type IndexRow } from "./quranIndex";
 import { Tracker } from "./tracker";
 
@@ -91,4 +91,25 @@ test("Tracker keeps a correctly-recited word green despite a folded reference", 
   const tr = new Tracker(index, 1);               // lock on الصراط (gidx 1)
   tr.update(["اهدنا", "الصراط", "المستقيم"]);      // ASR output = correct orthography
   expect(tr.statuses.get(1)).toBe("correct");     // was "wrong" before the fix
+});
+
+test("wordCorrect allows one edit on words >= 4 letters, strict below", () => {
+  expect(wordCorrect(0.75, 4)).toBe(true);
+  expect(wordCorrect(0.75, 3)).toBe(false);
+  expect(wordCorrect(0.80, 5)).toBe(true);
+  expect(wordCorrect(0.79, 6)).toBe(false);
+  expect(wordCorrect(0.5, 4)).toBe(false);
+});
+
+// A 4-letter word recited with a single non-folding slip must stay green.
+const lenRows: IndexRow[] = ["اياك", "نعبد", "واياك", "نستعين"].map((w, g) => ({
+  gidx: g, wordId: 300 + g, norm: w,
+  verseKey: "1:5", page: 1, line: 1, surah: 1, ayah: 5, position: g + 1,
+}));
+
+test("Tracker accepts a 4-letter word recited with a single slip", () => {
+  const index = new QuranIndex(lenRows, false);
+  const tr = new Tracker(index, 1);                     // lock on نعبد (gidx 1)
+  tr.update(["اياك", "يعبد", "واياك", "نستعين"]);         // نعبد heard as يعبد (ن→ي, sim 0.75)
+  expect(tr.statuses.get(1)).toBe("correct");           // was "wrong" at the 0.8 gate
 });

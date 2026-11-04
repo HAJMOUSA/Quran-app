@@ -1,6 +1,6 @@
 // On-device port of server/quran_server/tracker.py — turns successive ASR
 // transcripts into a Quran position + per-word statuses, fully offline.
-import { align, CORRECT_SIM } from "./align";
+import { align, wordCorrect } from "./align";
 import { QuranIndex, type Candidate } from "./quranIndex";
 
 const LOCK_MIN_SCORE = 0.55;
@@ -75,7 +75,7 @@ export class Tracker {
       const g = op.gidx;
       const prev = this.statuses.get(g);
       let next: WordStatus;
-      if (op.op === "match" && op.sim >= CORRECT_SIM) next = "correct";
+      if (op.op === "match" && wordCorrect(op.sim, this.index.norm[g].length)) next = "correct";
       else if (op.op === "match") next = "wrong";
       else next = "missed";
       if (prev === "correct" || prev === next) continue;
