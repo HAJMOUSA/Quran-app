@@ -1,5 +1,5 @@
 import { normalizeText, normalizeWords, foldPhonetic } from "./normalize";
-import { align, wordSim, CORRECT_SIM } from "./align";
+import { align, wordSim, CORRECT_SIM, wordCorrect } from "./align";
 import { QuranIndex, type IndexRow } from "./quranIndex";
 import { Tracker } from "./tracker";
 
@@ -91,4 +91,12 @@ test("Tracker keeps a correctly-recited word green despite a folded reference", 
   const tr = new Tracker(index, 1);               // lock on الصراط (gidx 1)
   tr.update(["اهدنا", "الصراط", "المستقيم"]);      // ASR output = correct orthography
   expect(tr.statuses.get(1)).toBe("correct");     // was "wrong" before the fix
+});
+
+test("wordCorrect allows one edit on words >= 4 letters, strict below", () => {
+  expect(wordCorrect(0.75, 4)).toBe(true);
+  expect(wordCorrect(0.75, 3)).toBe(false);
+  expect(wordCorrect(0.80, 5)).toBe(true);
+  expect(wordCorrect(0.79, 6)).toBe(false);
+  expect(wordCorrect(0.5, 4)).toBe(false);
 });
