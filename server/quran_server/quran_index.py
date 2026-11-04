@@ -33,6 +33,9 @@ def word_correct(sim: float, ref_len: int) -> bool:
     For words of length >= MIN_LEN_FOR_EDIT, allow a single edit
     (sim >= 1 - 1/ref_len); shorter words still require full CORRECT_SIM, where
     one edit is too large a share of the word and Arabic has many minimal pairs.
+    The min() caps the threshold at CORRECT_SIM so longer words are never held to
+    a *stricter* bar than today — at CORRECT_SIM=0.8 only length 4 is newly helped
+    (length >= 5 already clears 0.8 on one edit).
     """
     threshold = min(CORRECT_SIM, 1.0 - 1.0 / ref_len) if ref_len >= MIN_LEN_FOR_EDIT else CORRECT_SIM
     return sim >= threshold
