@@ -129,3 +129,14 @@ def test_word_correct_is_length_aware():
     assert word_correct(0.80, 5) is True
     assert word_correct(0.79, 6) is False
     assert word_correct(0.50, 4) is False   # two edits on a 4-letter word
+
+
+def test_tracker_accepts_four_letter_word_with_single_slip():
+    if not DB.exists():
+        pytest.skip("data/quran.db missing")
+    idx = QuranIndex(DB, fold=True)
+    s = idx.verse_start["1:5"]                     # اياك نعبد واياك نستعين
+    tr = Tracker(idx, start_gidx=s)
+    # "نعبد" (4 letters) recited as "يعبد" — a single non-folding slip (ن→ي).
+    tr.update(["اياك", "يعبد", "واياك", "نستعين"])
+    assert tr.state.statuses[s + 1] == "correct"   # was "wrong" at the 0.8 gate (sim 0.75)
