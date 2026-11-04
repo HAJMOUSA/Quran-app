@@ -220,6 +220,14 @@ mapped to an exact position in 77k words, then advanced in real time.
 alef/hamza/ta-marbuta forms, collapse whitespace) on both the index and the ASR
 output so fuzzy comparison is stable.
 
+**Phonetic folding (matching only, never display).** On top of normalization,
+both the index and the ASR query are *phonetically folded* — consonants the
+Arabic ASR routinely confuses are collapsed to one class (ص→س, ط/ث→ت, ذ/ظ→ز,
+ض→د, ق→ك, ح→ه). The query must be folded on the *same* path as the reference
+(both the server tracker and the on-device tracker fold at `update()`); folding
+the reference but comparing an unfolded query marked correct recitation red.
+Folding is idempotent and length-preserving.
+
 **Two phases per session:**
 
 1. **Search (not yet located).** On each recognized window the tracker fuzzy-
@@ -232,7 +240,10 @@ output so fuzzy comparison is stable.
    position, and classifies words as **correct** (recited), **wrong** (said
    something different), or **missed** (skipped). `current` carries
    `word_id, verse_key, page, line, position`, which drives highlighting and
-   auto page-turns.
+   auto page-turns. The correct/wrong gate is **length-aware** (`word_correct` /
+   `wordCorrect`): a word passes at per-word similarity ≥ `CORRECT_SIM` (0.8), or
+   with a single edit for words ≥ 4 letters (`min(CORRECT_SIM, 1−1/L)`) — short
+   2–3 letter words stay strict to avoid false greens on minimal pairs.
 
 **Streaming protocol (`/ws/recite`), client → server:** `start` (sample rate,
 optional `start_gidx`), raw PCM16 frames, `lock`, `reset`, `stop`. Server →
