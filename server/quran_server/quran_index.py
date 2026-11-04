@@ -24,6 +24,19 @@ GAP_REF = -0.6     # reference word not recited / not recognized (deletion)
 MERGE_PENALTY = -0.2  # small cost so a real 1:1 match is preferred
 CORRECT_SIM = 0.8  # similarity at or above which a word counts as recited correctly
 
+MIN_LEN_FOR_EDIT = 4  # words this long or longer may differ by one edit and still count correct
+
+
+def word_correct(sim: float, ref_len: int) -> bool:
+    """Whether a matched word counts as correctly recited.
+
+    For words of length >= MIN_LEN_FOR_EDIT, allow a single edit
+    (sim >= 1 - 1/ref_len); shorter words still require full CORRECT_SIM, where
+    one edit is too large a share of the word and Arabic has many minimal pairs.
+    """
+    threshold = min(CORRECT_SIM, 1.0 - 1.0 / ref_len) if ref_len >= MIN_LEN_FOR_EDIT else CORRECT_SIM
+    return sim >= threshold
+
 
 @lru_cache(maxsize=200_000)
 def word_sim(a: str, b: str) -> float:
