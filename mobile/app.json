@@ -34,7 +34,7 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
-      "package": "com.kelarev.mobile"
+      "package": "com.ahajmousa.quranapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
