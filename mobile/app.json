@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.kelarev.mobile",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app uses the microphone to listen to your recitation for follow-along and search."
+        "NSMicrophoneUsageDescription": "This app uses the microphone to listen to your recitation for follow-along and search.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.developer.kernel.increased-memory-limit": true
@@ -43,6 +44,17 @@
       "expo-sqlite",
       "expo-font",
       "expo-audio"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "aaa2d6c6-20d5-4228-8de3-529d6e9775ec"
+      }
+    },
+    "owner": "ahajmousa"
   }
 }
