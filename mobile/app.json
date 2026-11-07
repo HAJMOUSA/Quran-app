@@ -10,7 +10,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kelarev.mobile",
+      "bundleIdentifier": "com.ahajmousa.quranapp",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "This app uses the microphone to listen to your recitation for follow-along and search.",
         "ITSAppUsesNonExemptEncryption": false
