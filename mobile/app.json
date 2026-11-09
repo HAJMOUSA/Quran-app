@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "quran-app",
     "slug": "mobile",
     "scheme": "quranapp",
     "version": "1.0.4",
