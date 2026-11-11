@@ -33,7 +33,9 @@ wsl -d Ubuntu -- bash -c 'export PATH=/home/hajmousa/.nvm/versions/node/v26.13.0
 
 Traps: (a) do **not** reference `$PATH` when building PATH — WSL interop leaks the Windows PATH which has spaces and `(x86)` → `syntax error near '('`; hardcode `/usr/bin:/bin`. (b) the `. $NVM_DIR/nvm.sh` trick fails from Git-Bash (empty `$NVM_DIR` → `/nvm.sh: No such file`). Safe read-only cmds: `whoami`, `build:list --platform ios`, `device:list --apple-team-id R3V63T48HF`.
 
-**Interactive commands (`login`, `init`, `build`, `device:create`, `submit`) must be run by the user in their own interactive Ubuntu/WSL terminal** — the agent can't drive the Expo/Apple prompts. In an interactive shell nvm auto-loads from `.bashrc`, so `eas` resolves directly (no PATH juggling).
+**Interactive commands (`login`, `init`, `device:create`, iOS `build`, `submit`) must be run by the user in their own interactive Ubuntu/WSL terminal** — the agent can't drive the Expo/Apple prompts. In an interactive shell nvm auto-loads from `.bashrc`, so `eas` resolves directly (no PATH juggling).
+
+**Exception — the agent CAN run Android builds and OTA updates non-interactively** (no Apple/credentials prompts to drive): `eas build -p android --profile preview --non-interactive` and `eas update ... --non-interactive` work straight from the PowerShell-tool `wsl` wrapper above. The Android keystore is auto-generated **in the cloud** on the first build (because `keytool` isn't installed locally, EAS skips the local prompt). See the release/OTA sections below.
 
 ## Android — run on the physical device
 
@@ -53,6 +55,43 @@ adb -s R5CX327XC5L shell am start -a android.intent.action.VIEW -d "exp://127.0.
 - Clean reload: `adb -s R5CX327XC5L shell am force-stop host.exp.exponent` then re-push the deep link (bare re-push shows a stale render).
 - Navigate by deep link (tab taps unreliable): `exp://127.0.0.1:8081/--/browse`, `/--/search`, `/--/settings`.
 - Screenshot: `adb -s R5CX327XC5L exec-out screencap -p > out.png`.
+- Device may be **locked** (secure PIN) — a deep link then shows a black/PIN screen and Metro logs no bundle request. The agent can't enter the PIN; ask the user to unlock. Check with `adb -s R5CX327XC5L shell dumpsys window | findstr mDreamingLockscreen` (`=true` means locked).
+
+## Android — release APK → Google Drive (distribution channel)
+
+The chosen distribution channel for testers is a **release APK uploaded to Google Drive** (no Google Play — user won't pay the $25 for internal testing). The `preview` profile in [eas.json](../../../mobile/eas.json) already emits an APK (`buildType: apk`, internal).
+
+**One command (run from WSL Ubuntu):**
+```bash
+bash mobile/scripts/release-android-drive.sh
+```
+It builds the APK on EAS, extracts the artifact URL, uploads to `gdrive:quran-app-apks/quran-app-v<version>-<timestamp>.apk`, and prints a share link. The agent can run this whole flow non-interactively via the PowerShell `wsl` wrapper.
+
+Under the hood:
+- **Build:** `eas build -p android --profile preview --non-interactive --json` → the APK URL is the `applicationArchiveUrl` field (same as `buildUrl`). First build auto-creates the cloud keystore + remote Android credentials under `@ahajmousa/mobile`.
+- **Google Drive = rclone.** rclone is installed on **Windows** (winget `Rclone.Rclone`) at `C:\Users\ahajmousa\AppData\Local\Microsoft\WinGet\Packages\Rclone.Rclone_*\rclone-v*-windows-amd64\rclone.exe` (NOT on PATH in fresh shells). Remote `gdrive:` is OAuth-configured (hajmousa@gmail.com); upload folder `gdrive:quran-app-apks/`. Stream build→Drive in one hop with `rclone copyurl "<url>" "gdrive:quran-app-apks/<name>.apk"` (no local disk), then `rclone link <path>` for a shareable URL.
+- **WSL↔Windows bridge:** the release script runs in WSL but calls the Windows `rclone.exe` by its `/mnt/c/...` path — WSL interop executes the `.exe`, so one bash script spans both eas (WSL) and rclone (Windows).
+- Caveat: rclone's **shared Google client_id is being retired "during 2026"** — make a personal client_id (rclone.org/drive/#making-your-own-client-id) to future-proof the uploads. See [[android-apk-to-gdrive]].
+
+### QR-code install (iOS-style, no Drive needed)
+
+The `preview` profile is `distribution: internal`, so **every Android build also gets an EAS build page with a scannable QR** — the exact analog of the iOS install flow. The build page URL is `https://expo.dev/accounts/ahajmousa/projects/mobile/builds/<build-id>` (the release script prints it as `QR install page`; `eas build` without `--json` also prints an ASCII QR + a `See logs:` URL). Tester flow: open the build page → scan QR with the **Android camera** (or open the link directly) → **Download** → install (allow "install unknown apps" for the browser once).
+
+Unlike iOS ad-hoc, **Android internal distribution does NOT require device registration** — anyone with the link can install. So the QR page is the simplest channel; Drive is just a versioned archive/backup on top of it.
+
+## EAS Update (OTA) — ship JS changes without rebuilding
+
+`expo-updates` is installed, so a shipped APK can pull **JS/asset-only** updates over the air — no rebuild, no re-upload, no re-install. Channels `preview` and `production` exist, each mapped 1:1 to a same-named branch.
+
+**One command (run from WSL Ubuntu):**
+```bash
+bash mobile/scripts/push-ota.sh "what changed"
+```
+Wraps `eas update --branch preview --environment preview --message "..." --non-interactive`.
+
+- **The `--environment` flag is REQUIRED in `--non-interactive` mode** — without it the command errors ("The `--environment` flag must be set...").
+- **Runtime version gate:** an OTA update only reaches installed builds whose `runtimeVersion` matches. Policy is `appVersion`, so runtime = `app.json` `version`. Change JS but keep the same `version` → OTA reaches the current APK. Bump `version` → you must rebuild + redistribute an APK first; OTA won't cross versions.
+- **Native changes** (new native module, permissions, SDK bump) always need a full APK rebuild — OTA can't ship native code.
 
 ## iOS — cloud build, install on device (no Mac)
 
@@ -104,6 +143,8 @@ iPhone and PC on the **same Wi-Fi** (iPhone is NOT in airplane mode, unlike the 
 | I want to... | Command / action |
 |--------------|------------------|
 | Android JS iterate | `adb reverse` → `bunx expo start --clear` → push `exp://127.0.0.1:8081` |
+| **Release Android APK → Drive** | WSL: `bash mobile/scripts/release-android-drive.sh` (agent can run this) |
+| **Ship a JS-only change (OTA)** | WSL: `bash mobile/scripts/push-ota.sh "msg"` (agent can run this) |
 | iOS JS iterate (dev client installed) | `bunx expo start --dev-client` (Windows), same Wi-Fi |
 | New iOS dev build | WSL: `eas build -p ios --profile development` |
 | iOS standalone (no dev server) | WSL: `eas build -p ios --profile preview` |
@@ -118,3 +159,6 @@ iPhone and PC on the **same Wi-Fi** (iPhone is NOT in airplane mode, unlike the 
 - Opening the raw `.ipa` artifact on iPhone → "looking for iTunes". Use the build-page QR.
 - Forgetting Developer Mode → "mobile requires Developer Mode to run".
 - Expecting the Safari device-registration profile to work on the old iPhone — it doesn't; register by UDID.
+- `eas update` in `--non-interactive` mode without `--environment` → errors. Pass `--environment preview`.
+- Publishing an OTA after bumping `app.json` `version` → it won't reach the old APK (runtimeVersion gate). Rebuild the APK instead.
+- `rclone.exe` not found → it's not on PATH in fresh shells; use the full `...\WinGet\Packages\Rclone.Rclone_*\...\rclone.exe` path.
